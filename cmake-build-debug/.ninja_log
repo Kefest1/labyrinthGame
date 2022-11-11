@@ -1,0 +1,6 @@
+# ninja log v5
+138	226	1667855388981834446	labyrinthGame	e23fd101a9a052d7
+1041	1153	1667853598921834446	CMakeFiles/labyrinthGame.dir/player.c.o	135fedd731d0ff84
+0	138	1667855388873834446	CMakeFiles/labyrinthGame.dir/server.c.o	a8d0038bb8e7f7c7
+1	566	1668100852212817526	build.ninja	df98d970860be45b
+1153	1248	1667853599017834446	CMakeFiles/labyrinthGame.dir/wild_beast.c.o	2540e536f4a0fee8
