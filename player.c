@@ -16,6 +16,7 @@ void establishConnection(void) {
     if (playerConnector->totalPlayers == MAX_PLAYER_COUNT) {
         puts("Too many players\nTry again later.");
         playerConnector->okToConnect = 1;
+        playerConnector->playerConnected = 1;
     }
     else {
         playerConnector->playerConnected = 1;

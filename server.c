@@ -60,6 +60,7 @@ _Noreturn void *playerConnector(void *ptr) {
             if (index == -1) {
                 puts("Player couldn't connect (game is full)");
                 playerSharedConnector->okToConnect = 1;
+                pthread_mutex_unlock(&playerConnectionMutex);
                 continue;
             }
 
