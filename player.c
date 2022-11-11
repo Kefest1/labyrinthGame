@@ -20,10 +20,11 @@ void establishConnection(void) {
         for (int i = 0; i < MAX_PLAYER_COUNT; i++)
             if (playerConnector->playerStatus[i] == NOT_CONNECTED)
                 playerID = i;
+        playerConnector->totalPlayers++;
     }
     playerConnector->playerConnected = 1;
 
-    printf("Currently %d players\n", ++playerConnector->totalPlayers);
+    printf("Currently %d players\n", playerConnector->totalPlayers);
 
     pthread_mutex_unlock(&playerConnectionMutex);
 
@@ -31,5 +32,6 @@ void establishConnection(void) {
 
 int main(void) {
     establishConnection();
+    getchar();
     return 0;
 }
