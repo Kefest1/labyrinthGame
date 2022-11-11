@@ -55,6 +55,8 @@ void *playerConnector(void *ptr) {
             players->players[index].deaths = 0;
             players->players[index].coinsCarried = 0;
             players->players[index].coinsBrought = 0;
+            printf("Player %d has connected\n", index);
+            playerSharedConnector->okToConnect = 0;
             // TODO randomise positions
         }
         pthread_mutex_unlock(&playerConnectionMutex);
@@ -64,10 +66,13 @@ void *playerConnector(void *ptr) {
 }
 
 int main(void) {
+    prepareServer();
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     isDone = 1;
+
+    pthread_join(playerListenerThread, NULL);
 
     return 0;
 }

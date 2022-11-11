@@ -14,6 +14,7 @@ pthread_mutex_t playerConnectionMutex;
 
 typedef struct {
     _Bool playerConnected;
+    _Bool okToConnect;
     int justConnectedIndex;
     int totalPlayers;
 } player_connector_t;
