@@ -12,11 +12,16 @@
 
 pthread_mutex_t playerConnectionMutex;
 
+typedef enum {
+    NOT_CONNECTED = 0,
+    CONNECTED
+} player_status;
+
 typedef struct {
     _Bool playerConnected;
-    _Bool okToConnect;
     int justConnectedIndex;
     int totalPlayers;
+    player_status playerStatus[MAX_PLAYER_COUNT];
 } player_connector_t;
 
 typedef struct {
@@ -40,14 +45,8 @@ typedef enum {
     DROPPED_TREASURE
 } field_status_t;
 
-typedef enum {
-    NOT_CONNECTED = 0,
-    CONNECTED
-} player_status;
-
 struct players_t {
     player_t players[MAX_PLAYER_COUNT];
-    player_status playerStatus[MAX_PLAYER_COUNT];
     int totalPlayers;
 };
 

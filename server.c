@@ -31,14 +31,13 @@ void prepareServer(void) {
     int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
     playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
     playerSharedConnector->totalPlayers = 0;
-    playerSharedConnector->okToConnect = 1;
     playerSharedConnector->playerConnected = 0;
 }
 
 int findFreeIndex(void) {
     int freePos = -1;
     for (int i = 0; i < 4; i++) {
-        if (players->playerStatus[i] == NOT_CONNECTED) {
+        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
             freePos = i;
             break;
         }
@@ -47,8 +46,9 @@ int findFreeIndex(void) {
     return freePos;
 }
 
-_Noreturn void *playerConnector(void *ptr) {
-    playerSharedConnector->okToConnect = 1;
+
+_Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
+    players = calloc(1, sizeof(struct players_t));
 
     while (1) {
         pthread_mutex_lock(&playerConnectionMutex);
@@ -59,39 +59,33 @@ _Noreturn void *playerConnector(void *ptr) {
 
             if (index == -1) {
                 puts("Player couldn't connect (game is full)");
-                playerSharedConnector->okToConnect = 1;
                 pthread_mutex_unlock(&playerConnectionMutex);
                 continue;
             }
 
-            players->playerStatus[index] = CONNECTED;
+            playerSharedConnector->playerStatus[index] = CONNECTED;
             players->players[index].player_id = index;
             players->players[index].deaths = 0;
             players->players[index].coinsCarried = 0;
             players->players[index].coinsBrought = 0;
             players->totalPlayers++;
 
-            playerSharedConnector->totalPlayers++;
-            printf("Player %d has connected\n", index);
-            printf("Total players = %d\n", players->totalPlayers);
-            playerSharedConnector->okToConnect = 1;
-
+            printf("Player %d has connected\nTotal players = %d\n", index, players->totalPlayers);
             // TODO randomise positions
         }
         pthread_mutex_unlock(&playerConnectionMutex);
     }
-
 }
 
 int main(void) {
     prepareServer();
     puts("Server has started");
-    pthread_t playerListenerThread;
+    /*pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     isDone = 1;
 
-    pthread_join(playerListenerThread, NULL);
+    pthread_join(playerListenerThread, NULL);*/
 
     return 0;
 }
