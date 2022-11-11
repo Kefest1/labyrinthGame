@@ -13,6 +13,12 @@
 pthread_mutex_t playerConnectionMutex;
 
 typedef struct {
+    _Bool playerConnected;
+    int justConnectedIndex;
+    int totalPlayers;
+} player_connector_t;
+
+typedef struct {
     int xPosition;
     int yPosition;
 
@@ -23,6 +29,17 @@ typedef struct {
 } player_t;
 
 typedef enum {
+    WALL,
+    FREE_BLOCK,
+    LARGE_TREASURE,
+    TREASURE,
+    ONE_COIN,
+    BUSHES,
+    CAMPSITE,
+    DROPPED_TREASURE
+} field_status_t;
+
+typedef enum {
     CONNECTED,
     NOT_CONNECTED
 } player_status;
@@ -30,10 +47,7 @@ typedef enum {
 struct players_t {
     player_t players[MAX_PLAYER_COUNT];
     player_status playerStatus[MAX_PLAYER_COUNT];
-    int playerNumber;
-
-    _Bool playerConnected;
-    int justConnectedIndex;
+    int totalPlayers;
 };
 
 

@@ -6,60 +6,68 @@
 #include <sys/shm.h>
 
 
-
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
-// #define MAP_FILENAME "/root/CLionProjects/labyrinthGame/utils/map.txt"
 #define MAP_FILENAME "map.txt"
 #define WALL_CHAR '█'
 #define WALL_CHAR_REPLACED 'O'  // Since c doesn't like █ to be a char
 #define BUSH_CHAR '#'
 
-typedef enum {
-    WALL,
-    FREE_BLOCK,
-    LARGE_TREASURE,
-    TREASURE,
-    ONE_COIN,
-    BUSHES,
-    CAMPSITE,
-    DROPPED_TREASURE
-} field_status_t;
-
 field_status_t fieldStatus[LABYRINTH_WIDTH][LABYRINTH_HEIGHT];
+
+_Bool isDone = 0;
+player_connector_t *playerSharedConnector;
 struct players_t *players;
 
 void readMap(void);
 
 void prepareServer(void) {
-    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(struct players_t), 0644 | IPC_CREAT);
-    players = (struct players_t *) shmat(sharedBlockId, NULL, 0);
-
-    pthread_mutex_init(&playerConnectionMutex, NULL);
     readMap();
+    pthread_mutex_init(&playerConnectionMutex, NULL);
 
+    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
+    playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
+}
+
+int findFreeIndex(void) {
+    int freePos = -1;
+    for (int i = 0; i < 4; i++) {
+        if (players->playerStatus[i] == NOT_CONNECTED) {
+            freePos = i;
+            break;
+        }
+    }
+
+    return freePos;
 }
 
 void *playerConnector(void *ptr) {
 
     while (1) {
         pthread_mutex_lock(&playerConnectionMutex);
-        if (players->playerConnected == 1) {
-            players->playerConnected = 0;
+        if (playerSharedConnector->playerConnected == 1) {
+            playerSharedConnector->playerConnected = 0;
+            playerSharedConnector->justConnectedIndex = findFreeIndex();
+            int index = playerSharedConnector->justConnectedIndex;
 
+            players->playerStatus[index] = CONNECTED;
+            players->players[index].player_id = index;
+            players->players[index].deaths = 0;
+            players->players[index].coinsCarried = 0;
+            players->players[index].coinsBrought = 0;
+            // TODO randomise positions
         }
         pthread_mutex_unlock(&playerConnectionMutex);
-
     }
 
     return NULL;
 }
 
 int main(void) {
-    pthread_t playerListener;
-    pthread_create(&playerListener, NULL, playerConnector, NULL);
+    pthread_t playerListenerThread;
+    pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
-
+    isDone = 1;
 
     return 0;
 }
