@@ -10,7 +10,7 @@
 
 #include <pthread.h>
 
-pthread_mutex_t playerConnectionMutex; // Dupa
+pthread_mutex_t playerConnectionMutex;
 
 typedef struct {
     int xPosition;
