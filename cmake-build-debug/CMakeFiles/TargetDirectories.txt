@@ -1,3 +1,4 @@
 /root/CLionProjects/labyrinthGame/cmake-build-debug/CMakeFiles/labyrinthGame.dir
+/root/CLionProjects/labyrinthGame/cmake-build-debug/CMakeFiles/labyrinthGame_2.dir
 /root/CLionProjects/labyrinthGame/cmake-build-debug/CMakeFiles/edit_cache.dir
 /root/CLionProjects/labyrinthGame/cmake-build-debug/CMakeFiles/rebuild_cache.dir

@@ -41,8 +41,8 @@ typedef enum {
 } field_status_t;
 
 typedef enum {
-    CONNECTED,
-    NOT_CONNECTED
+    NOT_CONNECTED = 0,
+    CONNECTED
 } player_status;
 
 struct players_t {

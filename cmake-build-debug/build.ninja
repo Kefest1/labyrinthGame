@@ -51,7 +51,7 @@ build cmake_object_order_depends_target_labyrinthGame: phony || CMakeFiles/labyr
 
 build CMakeFiles/labyrinthGame.dir/server.c.o: C_COMPILER__labyrinthGame_Debug /root/CLionProjects/labyrinthGame/server.c || cmake_object_order_depends_target_labyrinthGame
   DEP_FILE = CMakeFiles/labyrinthGame.dir/server.c.o.d
-  FLAGS = -g -std=gnu99
+  FLAGS = -pthread -g -std=gnu99
   OBJECT_DIR = CMakeFiles/labyrinthGame.dir
   OBJECT_FILE_DIR = CMakeFiles/labyrinthGame.dir
 
@@ -64,12 +64,43 @@ build CMakeFiles/labyrinthGame.dir/server.c.o: C_COMPILER__labyrinthGame_Debug /
 # Link the executable labyrinthGame
 
 build labyrinthGame: C_EXECUTABLE_LINKER__labyrinthGame_Debug CMakeFiles/labyrinthGame.dir/server.c.o
-  FLAGS = -g
+  FLAGS = -pthread -g
   OBJECT_DIR = CMakeFiles/labyrinthGame.dir
   POST_BUILD = :
   PRE_LINK = :
   TARGET_FILE = labyrinthGame
   TARGET_PDB = labyrinthGame.dbg
+
+# =============================================================================
+# Object build statements for EXECUTABLE target labyrinthGame_2
+
+
+#############################################
+# Order-only phony target for labyrinthGame_2
+
+build cmake_object_order_depends_target_labyrinthGame_2: phony || CMakeFiles/labyrinthGame_2.dir
+
+build CMakeFiles/labyrinthGame_2.dir/player.c.o: C_COMPILER__labyrinthGame_2_Debug /root/CLionProjects/labyrinthGame/player.c || cmake_object_order_depends_target_labyrinthGame_2
+  DEP_FILE = CMakeFiles/labyrinthGame_2.dir/player.c.o.d
+  FLAGS = -pthread -g -std=gnu99
+  OBJECT_DIR = CMakeFiles/labyrinthGame_2.dir
+  OBJECT_FILE_DIR = CMakeFiles/labyrinthGame_2.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target labyrinthGame_2
+
+
+#############################################
+# Link the executable labyrinthGame_2
+
+build labyrinthGame_2: C_EXECUTABLE_LINKER__labyrinthGame_2_Debug CMakeFiles/labyrinthGame_2.dir/player.c.o
+  FLAGS = -pthread -g
+  OBJECT_DIR = CMakeFiles/labyrinthGame_2.dir
+  POST_BUILD = :
+  PRE_LINK = :
+  TARGET_FILE = labyrinthGame_2
+  TARGET_PDB = labyrinthGame_2.dbg
 
 
 #############################################
@@ -106,7 +137,7 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 #############################################
 # Folder: /root/CLionProjects/labyrinthGame/cmake-build-debug
 
-build all: phony labyrinthGame
+build all: phony labyrinthGame labyrinthGame_2
 
 # =============================================================================
 # Built-in targets

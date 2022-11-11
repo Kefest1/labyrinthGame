@@ -4,6 +4,7 @@
 #include "utils.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <stdlib.h>
 
 
 #define LABYRINTH_WIDTH  51
@@ -25,8 +26,13 @@ void prepareServer(void) {
     readMap();
     pthread_mutex_init(&playerConnectionMutex, NULL);
 
+    players = calloc(1, sizeof(struct players_t));
+
     int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
     playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
+    playerSharedConnector->totalPlayers = 0;
+    playerSharedConnector->okToConnect = 1;
+    playerSharedConnector->playerConnected = 0;
 }
 
 int findFreeIndex(void) {
@@ -41,7 +47,8 @@ int findFreeIndex(void) {
     return freePos;
 }
 
-void *playerConnector(void *ptr) {
+_Noreturn void *playerConnector(void *ptr) {
+    playerSharedConnector->okToConnect = 1;
 
     while (1) {
         pthread_mutex_lock(&playerConnectionMutex);
@@ -50,23 +57,34 @@ void *playerConnector(void *ptr) {
             playerSharedConnector->justConnectedIndex = findFreeIndex();
             int index = playerSharedConnector->justConnectedIndex;
 
+            if (index == -1) {
+                puts("Player couldn't connect (game is full)");
+                playerSharedConnector->okToConnect = 1;
+                continue;
+            }
+
             players->playerStatus[index] = CONNECTED;
             players->players[index].player_id = index;
             players->players[index].deaths = 0;
             players->players[index].coinsCarried = 0;
             players->players[index].coinsBrought = 0;
+            players->totalPlayers++;
+
+            playerSharedConnector->totalPlayers++;
             printf("Player %d has connected\n", index);
-            playerSharedConnector->okToConnect = 0;
+            printf("Total players = %d\n", players->totalPlayers);
+            playerSharedConnector->okToConnect = 1;
+
             // TODO randomise positions
         }
         pthread_mutex_unlock(&playerConnectionMutex);
     }
 
-    return NULL;
 }
 
 int main(void) {
     prepareServer();
+    puts("Server has started");
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
