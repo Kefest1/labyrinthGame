@@ -6,8 +6,13 @@
 
 int playerID;
 
-void establishConnection(void) {
-    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
+int establishConnection(void) {
+    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0),
+                               sizeof(player_connector_t),
+                               0644 | IPC_CREAT | IPC_EXCL);
+
+    if (sharedBlockId == -1) return -1;
+
     player_connector_t *playerConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
     pthread_mutex_lock(&playerConnectionMutex);
@@ -28,10 +33,14 @@ void establishConnection(void) {
 
     pthread_mutex_unlock(&playerConnectionMutex);
 
+    return 0;
 }
 
 int main(void) {
-    establishConnection();
+    if (establishConnection() == -1)
+        return printf("Failed to connect."), 1;
+
+
     getchar();
     return 0;
 }

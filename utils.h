@@ -22,6 +22,7 @@ typedef struct {
     int justConnectedIndex;
     int totalPlayers;
     player_status playerStatus[MAX_PLAYER_COUNT];
+
 } player_connector_t;
 
 typedef struct {

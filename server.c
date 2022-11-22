@@ -17,7 +17,6 @@
 
 field_status_t fieldStatus[LABYRINTH_WIDTH][LABYRINTH_HEIGHT];
 
-_Bool isDone = 0;
 player_connector_t *playerSharedConnector;
 struct players_t *players;
 
@@ -39,18 +38,7 @@ void prepareServer(void) {
         playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
 }
 
-int findFreeIndex(void) {
-    int freePos = -1;
-    for (int i = 0; i < 4; i++) {
-        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
-            freePos = i;
-            break;
-        }
-    }
-
-    return freePos;
-}
-
+int findFreeIndex(void);
 
 _Noreturn void *playerConnector(void *ptr) {
 
@@ -92,8 +80,6 @@ int main(void) {
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
-    isDone = 1;
-
     pthread_join(playerListenerThread, NULL);
     sleep(1);
     shmdt(playerSharedConnector);
@@ -102,6 +88,17 @@ int main(void) {
     return 0;
 }
 
+int findFreeIndex(void) {
+    int freePos = -1;
+    for (int i = 0; i < 4; i++) {
+        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
+            freePos = i;
+            break;
+        }
+    }
+
+    return freePos;
+}
 
 
 void readMap(void) {
