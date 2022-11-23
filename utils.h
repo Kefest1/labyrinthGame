@@ -45,7 +45,7 @@ typedef enum {
     CAMPSITE,
     DROPPED_TREASURE
 } field_status_t;
-
+// field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 struct players_t {
     player_t players[MAX_PLAYER_COUNT];
     int totalPlayers;

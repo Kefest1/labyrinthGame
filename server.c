@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
-
+#include <ncurses.h>
 #include "utils.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -15,7 +15,7 @@
 #define WALL_CHAR_REPLACED 'O'  // Since c doesn't like █ to be a char
 #define BUSH_CHAR '#'
 
-field_status_t fieldStatus[LABYRINTH_WIDTH][LABYRINTH_HEIGHT];
+field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
 player_connector_t *playerSharedConnector;
 struct players_t *players;
@@ -74,16 +74,53 @@ _Noreturn void *playerConnector(void *ptr) {
 
 }
 
+void displayMap(void) {
+    initscr();
+
+    WINDOW *win = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 1, 1);
+    // box(win, 0, 0);
+    refresh();
+
+    for (int i = 0; i < LABYRINTH_HEIGHT; i++) {
+        for (int j = 0; j < LABYRINTH_WIDTH; j++) {
+            field_status_t buffer = fieldStatus[i][j];
+            if (buffer == WALL)
+                wprintw(win, "%c", WALL_CHAR_REPLACED);
+            else if (buffer == LARGE_TREASURE)
+                wprintw(win, "%c", 'T');
+            else if (buffer == TREASURE)
+                wprintw(win, "%c", 't');
+            else if (buffer == ONE_COIN)
+                wprintw(win, "%c", 'c');
+            else if (buffer == BUSHES)
+                wprintw(win, "%c", '#');
+            else if (buffer == CAMPSITE)
+                wprintw(win, "%c", 'A');
+            else if (buffer == DROPPED_TREASURE)
+                wprintw(win, "%c", 'D');
+            else wprintw(win, "%c", ' ');
+        }
+        wmove(win, i + 1, 0);
+    }
+
+    wrefresh(win);
+    refresh();
+}
+
 int main(void) {
+
     prepareServer();
-    puts("Server has started");
+    displayMap();
+//    puts("\n\nServer has started");
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
-    pthread_join(playerListenerThread, NULL);
-    sleep(1);
+    // pthread_join(playerListenerThread, NULL);
+    sleep(50);
     shmdt(playerSharedConnector);
     free(players);
+
+    endwin();
 
     return 0;
 }
@@ -110,21 +147,21 @@ void readMap(void) {
         for (int j = 0; j < LABYRINTH_WIDTH; j++) {
             buffer = fgetc(fp);
             if (buffer == WALL_CHAR_REPLACED)
-                fieldStatus[j][i] = WALL;
+                fieldStatus[i][j] = WALL;
             if (buffer == ' ')
-                fieldStatus[j][i] = FREE_BLOCK;
+                fieldStatus[i][j] = FREE_BLOCK;
             if (buffer == BUSH_CHAR)
-                fieldStatus[j][i] = BUSHES;
+                fieldStatus[i][j] = BUSHES;
             if (buffer == 'c')
-                fieldStatus[j][i] = ONE_COIN;
+                fieldStatus[i][j] = ONE_COIN;
             if (buffer == 't')
-                fieldStatus[j][i] = TREASURE;
+                fieldStatus[i][j] = TREASURE;
             if (buffer == 'T')
-                fieldStatus[j][i] = LARGE_TREASURE;
+                fieldStatus[i][j] = LARGE_TREASURE;
             if (buffer == 'A')
-                fieldStatus[j][i] = CAMPSITE;
+                fieldStatus[i][j] = CAMPSITE;
             if (buffer == 'D')
-                fieldStatus[j][i] = DROPPED_TREASURE;
+                fieldStatus[i][j] = DROPPED_TREASURE;
         }
 
         fgetc(fp);  // "\n"

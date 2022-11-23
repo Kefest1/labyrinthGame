@@ -1,2 +1,2 @@
-gcc server.c -pthread -o server
+gcc server.c -pthread -lncurses -o server
 ./server

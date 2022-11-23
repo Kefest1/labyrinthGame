@@ -9,9 +9,9 @@ int playerID;
 int establishConnection(void) {
     int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0),
                                sizeof(player_connector_t),
-                               0644 | IPC_CREAT | IPC_EXCL);
+                               IPC_EXCL);
 
-    if (sharedBlockId == -1) return -1;
+    if (sharedBlockId < 0) return -1;
 
     player_connector_t *playerConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
@@ -38,8 +38,7 @@ int establishConnection(void) {
 
 int main(void) {
     if (establishConnection() == -1)
-        return printf("Failed to connect."), 1;
-
+        return puts("Failed to connect."), 1;
 
     getchar();
     return 0;
