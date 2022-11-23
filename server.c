@@ -78,36 +78,48 @@ void displayMap(void) {
     initscr();
 
     WINDOW *win = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 1, 1);
-    // box(win, 0, 0);
-    refresh();
 
+    refresh();
+    init_pair(1, COLOR_BLACK, COLOR_YELLOW);
+    wbkgd(win, COLOR_PAIR(1));
     for (int i = 0; i < LABYRINTH_HEIGHT; i++) {
         for (int j = 0; j < LABYRINTH_WIDTH; j++) {
             field_status_t buffer = fieldStatus[i][j];
             if (buffer == WALL)
                 wprintw(win, "%c", WALL_CHAR_REPLACED);
             else if (buffer == LARGE_TREASURE)
-                wprintw(win, "%c", 'T');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", 'T'), wattroff(win, COLOR_PAIR(1));
             else if (buffer == TREASURE)
-                wprintw(win, "%c", 't');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", 't'), wattroff(win, COLOR_PAIR(1));
             else if (buffer == ONE_COIN)
-                wprintw(win, "%c", 'c');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", 'c'), wattroff(win, COLOR_PAIR(1));
             else if (buffer == BUSHES)
-                wprintw(win, "%c", '#');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", '#'), wattroff(win, COLOR_PAIR(1));
             else if (buffer == CAMPSITE)
-                wprintw(win, "%c", 'A');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", 'A'), wattroff(win, COLOR_PAIR(1));
             else if (buffer == DROPPED_TREASURE)
-                wprintw(win, "%c", 'D');
+                wattron(win, COLOR_PAIR(1)), wprintw(win, "%c", 'D'), wattroff(win, COLOR_PAIR(1));
             else wprintw(win, "%c", ' ');
         }
         wmove(win, i + 1, 0);
     }
+
+    attron(COLOR_PAIR(1));
+    printw("%c", '#'),
+    attroff(1);
+
+
 
     wrefresh(win);
     refresh();
 }
 
 int main(void) {
+    if (!has_colors()) {
+        puts("Error");
+    }
+    else puts("Ok");
+    sleep(1);
 
     prepareServer();
     displayMap();
@@ -116,7 +128,7 @@ int main(void) {
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(50);
+    sleep(5);
     shmdt(playerSharedConnector);
     free(players);
 
