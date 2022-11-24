@@ -2,19 +2,26 @@
 #include "utils.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <errno.h>
+
 
 int playerID;
 int playerProcessID;
 
+int coinsCarried;
+int coinsBrought;
+int deaths;
+
 int establishConnection(void) {
     key_t key = ftok(FILE_MEM_SHARE, 0);
     int sharedBlockId = shmget(key, sizeof(player_connector_t),
-                               IPC_EXCL);
+                               IPC_CREAT);
 
     if (sharedBlockId < 0)
         return -1;
 
-    player_connector_t *playerConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
+    player_connector_t *playerConnector =
+            (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
     pthread_mutex_lock(&playerConnectionMutex);
 

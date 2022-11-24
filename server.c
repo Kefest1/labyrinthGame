@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <ncurses.h>
 #include "utils.h"
+#include "server.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <stdlib.h>
@@ -23,7 +24,7 @@ struct players_t *players;
 WINDOW *win;
 
 
-// Statistics here: //
+// <Statistics here:> //
 
 int xCaptionStartLoc = 1;
 int yCaptionStartLoc = LABYRINTH_WIDTH + 1 + 3;
@@ -35,7 +36,7 @@ int campsiteYCoordinate;
 
 int roundNumber;
 
-// Statistics there: //
+// </Statistics here:> //
 
 void createAndDisplayServerStatistics(void) {
     serverProcessId = getpid();
@@ -105,6 +106,13 @@ _Noreturn void *playerConnector(void *ptr) {
             players->players->xPosition = *tempArr;
             players->players->yPosition = *(tempArr + 1);
             paintPlayer(index, *(tempArr + 0), *(tempArr + 1));
+            fieldStatus[*tempArr][*(tempArr + 1)] = getStatusFromIndex(index);
+
+            wmove(win, *tempArr, *(tempArr + 1));
+            wprintw(win, "%c", (char) (index + '0' + 1));
+            refresh();
+            wrefresh(win);
+
             free(tempArr);
             // printf("Player %d has connected\n", index);
             // printf("Total players = %d\n", players->totalPlayers);
@@ -157,7 +165,7 @@ int main(void) {
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(2);
+    sleep(8);
     shmdt(playerSharedConnector);
     free(players);
 
@@ -226,11 +234,6 @@ int *getRandomFreePosition(void) {
     do {
         x = rand() % LABYRINTH_HEIGHT;
         y = rand() % LABYRINTH_WIDTH;
-
-        for (int i = 0; i < 4; i++) {
-            if (players[i].players->xPosition == x && players[i].players->yPosition == y)
-                goto failed;
-        }
     } while (fieldStatus[x][y] != FREE_BLOCK);
 
     int *buffArr = malloc(2 * sizeof(int));
@@ -238,4 +241,11 @@ int *getRandomFreePosition(void) {
     *(buffArr + 1) = y;
 
     return buffArr;
+}
+
+field_status_t getStatusFromIndex(int index) {
+    if (index == 0) return PLAYER_1;
+    if (index == 1) return PLAYER_2;
+    if (index == 2) return PLAYER_3;
+    return PLAYER_4;
 }

@@ -7,6 +7,7 @@
 
 #define FILE_MEM_SHARE "player.c"
 #define MAX_PLAYER_COUNT 4
+#define MAX_BEAST_COUNT 8
 
 #include <pthread.h>
 
@@ -35,6 +36,11 @@ typedef struct {
     int deaths;
 } player_t;
 
+typedef struct {
+    int xPosition;
+    int yPosition;
+} wild_beast_t;
+
 typedef enum {
     WALL,
     FREE_BLOCK,
@@ -43,23 +49,20 @@ typedef enum {
     ONE_COIN,
     BUSHES,
     CAMPSITE,
-    DROPPED_TREASURE
+    DROPPED_TREASURE,
+    WILD_BEAST,
+    PLAYER_1,
+    PLAYER_2,
+    PLAYER_3,
+    PLAYER_4
 } field_status_t;
 // field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
+
 struct players_t {
+    wild_beast_t wildBeast[MAX_BEAST_COUNT];
     player_t players[MAX_PLAYER_COUNT];
     int totalPlayers;
 };
 
-typedef struct {
-
-} shared_controller_t;
-
-
-int findFreeIndex(void);
-void readMap(void);
-int *getRandomFreePosition(void);
-void paintPlayer(int index, int x, int y);
-void displayMap(void);
 
 #endif //LABYRINTHGAME_UTILS_H
