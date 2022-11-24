@@ -25,9 +25,10 @@ WINDOW *win;
 
 // Statistics here: //
 
-__pid_t serverProcessId;
 int xCaptionStartLoc = 1;
 int yCaptionStartLoc = LABYRINTH_WIDTH + 1 + 3;
+
+__pid_t serverProcessId;
 
 int campsiteXCoordinate;
 int campsiteYCoordinate;
