@@ -1,17 +1,18 @@
 #include <stdio.h>
-#include <signal.h>
 #include "utils.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
 int playerID;
+int playerProcessID;
 
 int establishConnection(void) {
-    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0),
-                               sizeof(player_connector_t),
+    key_t key = ftok(FILE_MEM_SHARE, 0);
+    int sharedBlockId = shmget(key, sizeof(player_connector_t),
                                IPC_EXCL);
 
-    if (sharedBlockId < 0) return -1;
+    if (sharedBlockId < 0)
+        return -1;
 
     player_connector_t *playerConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
@@ -38,7 +39,7 @@ int establishConnection(void) {
 
 int main(void) {
     if (establishConnection() == -1)
-        return puts("Failed to connect."), 1;
+        return puts("Failed to connect.\nServer is yet to start"), 1;
 
     getchar();
     return 0;

@@ -20,7 +20,44 @@ field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 player_connector_t *playerSharedConnector;
 struct players_t *players;
 
-void readMap(void);
+WINDOW *win;
+
+
+// Statistics here: //
+
+__pid_t serverProcessId;
+int xCaptionStartLoc = 1;
+int yCaptionStartLoc = LABYRINTH_WIDTH + 1 + 3;
+
+int campsiteXCoordinate;
+int campsiteYCoordinate;
+
+int roundNumber;
+
+// Statistics there: //
+
+void createAndDisplayServerStatistics(void) {
+    serverProcessId = getpid();
+    roundNumber = 0;
+    int i = 0;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Server's PID: %d", serverProcessId);
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Campsite X/Y: %d/%d", campsiteXCoordinate, campsiteYCoordinate);
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Round number: %d", roundNumber);
+    i++;
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Parameter:   Player1  Player2  Player3  Player4");
+    i++;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "PID");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Curr X/Y");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Deaths");
+    i++;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Coins");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "\tCarried");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tbrought");
+    // TODO legend
+
+    refresh();
+}
 
 void prepareServer(void) {
     readMap();
@@ -38,7 +75,6 @@ void prepareServer(void) {
         playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
 }
 
-int findFreeIndex(void);
 
 _Noreturn void *playerConnector(void *ptr) {
 
@@ -63,11 +99,14 @@ _Noreturn void *playerConnector(void *ptr) {
             players->players[index].coinsBrought = 0;
             players->totalPlayers++;
 
+            int *tempArr = getRandomFreePosition();
 
-            printf("Player %d has connected\n", index);
-            printf("Total players = %d\n", players->totalPlayers);
-
-            // TODO randomise positions
+            players->players->xPosition = *tempArr;
+            players->players->yPosition = *(tempArr + 1);
+            paintPlayer(index, *(tempArr + 0), *(tempArr + 1));
+            free(tempArr);
+            // printf("Player %d has connected\n", index);
+            // printf("Total players = %d\n", players->totalPlayers);
         }
         pthread_mutex_unlock(&playerConnectionMutex);
     }
@@ -77,7 +116,7 @@ _Noreturn void *playerConnector(void *ptr) {
 void displayMap(void) {
     initscr();
 
-    WINDOW *win = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 1, 1);
+    win = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 1, 1);
 
     refresh();
     init_pair(1, COLOR_BLACK, COLOR_YELLOW);
@@ -104,31 +143,20 @@ void displayMap(void) {
         wmove(win, i + 1, 0);
     }
 
-    attron(COLOR_PAIR(1));
-    printw("%c", '#'),
-    attroff(1);
-
-
-
     wrefresh(win);
     refresh();
 }
 
-int main(void) {
-    if (!has_colors()) {
-        puts("Error");
-    }
-    else puts("Ok");
-    sleep(1);
 
+int main(void) {
     prepareServer();
     displayMap();
-//    puts("\n\nServer has started");
+    createAndDisplayServerStatistics();
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(5);
+    sleep(2);
     shmdt(playerSharedConnector);
     free(players);
 
@@ -137,18 +165,13 @@ int main(void) {
     return 0;
 }
 
-int findFreeIndex(void) {
-    int freePos = -1;
-    for (int i = 0; i < 4; i++) {
-        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
-            freePos = i;
-            break;
-        }
-    }
 
-    return freePos;
+void paintPlayer(int index, int x, int y) {
+    wmove(win, x, y);
+    wprintw(win, "%c", (char) (index + '0' + 1));
+    wrefresh(win);
+    refresh();
 }
-
 
 void readMap(void) {
     FILE *fp = fopen(MAP_FILENAME, "r");
@@ -171,7 +194,7 @@ void readMap(void) {
             if (buffer == 'T')
                 fieldStatus[i][j] = LARGE_TREASURE;
             if (buffer == 'A')
-                fieldStatus[i][j] = CAMPSITE;
+                fieldStatus[i][j] = CAMPSITE, campsiteXCoordinate = i, campsiteYCoordinate = j;
             if (buffer == 'D')
                 fieldStatus[i][j] = DROPPED_TREASURE;
         }
@@ -180,4 +203,38 @@ void readMap(void) {
     }
 
     fclose(fp);
+}
+
+int findFreeIndex(void) {
+    int freePos = -1;
+    for (int i = 0; i < 4; i++) {
+        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
+            freePos = i;
+            break;
+        }
+    }
+
+    return freePos;
+}
+
+int *getRandomFreePosition(void) {
+    srand(time(NULL));
+
+    int x, y;
+    failed:
+    do {
+        x = rand() % LABYRINTH_HEIGHT;
+        y = rand() % LABYRINTH_WIDTH;
+
+        for (int i = 0; i < 4; i++) {
+            if (players[i].players->xPosition == x && players[i].players->yPosition == y)
+                goto failed;
+        }
+    } while (fieldStatus[x][y] != FREE_BLOCK);
+
+    int *buffArr = malloc(2 * sizeof(int));
+    *buffArr = x;
+    *(buffArr + 1) = y;
+
+    return buffArr;
 }

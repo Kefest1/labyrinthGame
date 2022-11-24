@@ -51,5 +51,15 @@ struct players_t {
     int totalPlayers;
 };
 
+typedef struct {
+
+} shared_controller_t;
+
+
+int findFreeIndex(void);
+void readMap(void);
+int *getRandomFreePosition(void);
+void paintPlayer(int index, int x, int y);
+void displayMap(void);
 
 #endif //LABYRINTHGAME_UTILS_H
