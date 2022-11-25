@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <ncurses.h>
-#include "utils.h"
+#include "communicator.h"
 #include "server.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -67,7 +67,7 @@ void prepareServer(void) {
 
     players = calloc(1, sizeof(struct players_t));
 
-    int sharedBlockId = shmget(ftok(FILE_MEM_SHARE, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
+    int sharedBlockId = shmget(ftok(FILE_CONNECTOR, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
     playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
     playerSharedConnector->totalPlayers = 0;
@@ -78,7 +78,7 @@ void prepareServer(void) {
 }
 
 
-_Noreturn void *playerConnector(void *ptr) {
+_Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
         pthread_mutex_lock(&playerConnectionMutex);
@@ -121,6 +121,8 @@ _Noreturn void *playerConnector(void *ptr) {
     }
 
 }
+
+
 
 void displayMap(void) {
     initscr();
@@ -165,7 +167,7 @@ int main(void) {
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(8);
+    sleep(20);
     shmdt(playerSharedConnector);
     free(players);
 
@@ -227,10 +229,10 @@ int findFreeIndex(void) {
 }
 
 int *getRandomFreePosition(void) {
-    srand(time(NULL));
+    srand((unsigned int) time(NULL));
 
     int x, y;
-    failed:
+
     do {
         x = rand() % LABYRINTH_HEIGHT;
         y = rand() % LABYRINTH_WIDTH;

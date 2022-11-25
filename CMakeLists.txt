@@ -5,6 +5,10 @@ set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
 
+set(CMAKE_C_FLAGS "-lncurses -pthread")
+
+# set(CMAKE_C_FLAGS "-pthread")
+
 add_executable(labyrinthGame server.c player.h server.h utils.h serverInformationStatistics.h communicator.h serverInformationStatistics.h)
 
 add_executable(labyrinthGame_2 player.h server.h utils.h player.c communicator.h)

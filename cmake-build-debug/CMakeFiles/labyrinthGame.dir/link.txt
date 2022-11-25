@@ -1,1 +1,1 @@
-/usr/bin/cc  -pthread -g CMakeFiles/labyrinthGame.dir/server.c.o -o labyrinthGame 
+/usr/bin/cc -lncurses -pthread -g CMakeFiles/labyrinthGame.dir/server.c.o -o labyrinthGame 

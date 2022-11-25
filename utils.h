@@ -5,7 +5,9 @@
 #ifndef LABYRINTHGAME_UTILS_H
 #define LABYRINTHGAME_UTILS_H
 
-#define FILE_MEM_SHARE "player.c"
+#define FILE_CONNECTOR "player.c"
+#define FILE_CONTROLLER "server.c"
+
 #define MAX_PLAYER_COUNT 4
 #define MAX_BEAST_COUNT 8
 
@@ -23,7 +25,6 @@ typedef struct {
     int justConnectedIndex;
     int totalPlayers;
     player_status playerStatus[MAX_PLAYER_COUNT];
-
 } player_connector_t;
 
 typedef struct {
@@ -54,7 +55,11 @@ typedef enum {
     PLAYER_1,
     PLAYER_2,
     PLAYER_3,
-    PLAYER_4
+    PLAYER_4,
+    PLAYER_1_ON_BUSH,
+    PLAYER_2_ON_BUSH,
+    PLAYER_3_ON_BUSH,
+    PLAYER_4_ON_BUSH
 } field_status_t;
 // field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
