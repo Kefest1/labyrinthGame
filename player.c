@@ -5,7 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
-
+// TODO FAIL IS DOESN'T EXIST
 
 int playerID;
 int playerProcessID;
@@ -17,13 +17,26 @@ int deaths;
 player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
 
+int checkIfConnectorExist(void) {
+    errno = 0;
+
+    int sharedBlockId = shmget(ftok(FILE_CONNECTOR, 0), sizeof(player_connector_t),
+                               IPC_CREAT | IPC_EXCL);
+
+    if (sharedBlockId == -1)
+        if (errno == EEXIST)
+            return 1;
+
+    return 0;
+}
+
 int establishConnection(void) {
+    if (!checkIfConnectorExist())
+        return -1;
+
     key_t key = ftok(FILE_CONNECTOR, 0);
     int sharedBlockId = shmget(key, sizeof(player_connector_t),
                                IPC_CREAT);
-
-    if (sharedBlockId < 0)
-        return -1;
 
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);

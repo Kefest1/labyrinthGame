@@ -167,7 +167,7 @@ int main(void) {
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(20);
+    sleep(3);
     shmdt(playerSharedConnector);
     free(players);
 

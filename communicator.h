@@ -24,6 +24,7 @@ struct communicator_t {
     map_around_t mapAround[MAX_PLAYERS];
     int coinsPicked[MAX_PLAYERS];
 
+    int currentlyMovingPlayerIndex;
 
 };
 
