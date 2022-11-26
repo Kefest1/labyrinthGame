@@ -18,6 +18,7 @@
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
+struct communicator_t *playerCommunicator;
 player_connector_t *playerSharedConnector;
 struct players_t *players;
 
@@ -122,7 +123,21 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
 }
 
+void createCommunicator(void) {
 
+    key_t key = ftok(FILE_CONTROLLER, 0);
+    int sharedBlockId = shmget(key, sizeof(struct communicator_t),
+                               IPC_CREAT);
+
+    playerCommunicator =
+            (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
+
+   pthread_mutex_init(&playerControllerMutex, NULL);
+//   pthread_mutex_lock(&playerCommunicator->mutex);
+
+//   pthread_mutex_unlock(&playerCommunicator->mutex);
+
+}
 
 void displayMap(void) {
     initscr();
@@ -163,6 +178,7 @@ int main(void) {
     prepareServer();
     displayMap();
     createAndDisplayServerStatistics();
+    createCommunicator();
     pthread_t playerListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 

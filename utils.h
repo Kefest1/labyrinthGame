@@ -14,6 +14,7 @@
 #include <pthread.h>
 
 pthread_mutex_t playerConnectionMutex;
+pthread_mutex_t playerControllerMutex;
 
 typedef enum {
     NOT_CONNECTED = 0,

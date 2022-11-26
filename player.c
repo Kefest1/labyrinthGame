@@ -30,9 +30,11 @@ int checkIfConnectorExist(void) {
     return 0;
 }
 
+
+
 int establishConnection(void) {
-    if (!checkIfConnectorExist())
-        return -1;
+//    if (checkIfConnectorExist())
+//        return -1;
 
     key_t key = ftok(FILE_CONNECTOR, 0);
     int sharedBlockId = shmget(key, sizeof(player_connector_t),
@@ -58,7 +60,8 @@ int establishConnection(void) {
     }
     playerConnector->playerConnected = 1;
 
-    connectToCommunicator(playerID);
+    // Already locked! //
+    //connectToCommunicator(playerID);
 
     printf("Currently %d players\n", playerConnector->totalPlayers);
 
@@ -75,15 +78,29 @@ int connectToCommunicator(int playerConnectionIndex) {
     playerCommunicator =
             (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
+     pthread_mutex_lock(&playerConnectionMutex);
+
     playerCommunicator->isConnected[playerConnectionIndex] = 1;
+    playerCommunicator->coinsPicked[playerConnectionIndex] = 0;
+
+     pthread_mutex_unlock(&playerConnectionMutex);
 
     return 0;
 }
 
-int main(void) {
-    if (establishConnection() == -1)
-        return puts("Failed to connect.\nServer is yet to start"), 1;
+void *gameMove(void *ptr) {
+    // print "your turn"
+    char input;
 
-    getchar();
+
+
+}
+
+int main(void) {
+    int x = getchar();
+    printf("\"%c\"\n", x);
+//    if (establishConnection() == -1)
+//        return puts("Failed to connect.\nServer is yet to start"), 1;
+
     return 0;
 }
