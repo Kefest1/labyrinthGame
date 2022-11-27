@@ -10,9 +10,6 @@
 int playerID;
 int playerProcessID;
 
-int coinsCarried;
-int coinsBrought;
-int deaths;
 
 player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
@@ -78,12 +75,11 @@ int connectToCommunicator(int playerConnectionIndex) {
     playerCommunicator =
             (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
-     pthread_mutex_lock(&playerConnectionMutex);
+    pthread_mutex_lock(&playerConnectionMutex);
 
     playerCommunicator->isConnected[playerConnectionIndex] = 1;
-    playerCommunicator->coinsPicked[playerConnectionIndex] = 0;
 
-     pthread_mutex_unlock(&playerConnectionMutex);
+    pthread_mutex_unlock(&playerConnectionMutex);
 
     return 0;
 }

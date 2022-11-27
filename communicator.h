@@ -29,6 +29,9 @@ struct communicator_t {
     _Bool currentlyMoving[MAX_PLAYERS];
     map_around_t mapAround[MAX_PLAYERS];
     int coinsPicked[MAX_PLAYERS];
+    int deaths[MAX_PLAYERS];
+
+
 
     int currentlyMovingPlayerIndex;
 

@@ -20,7 +20,7 @@ field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
 struct communicator_t *playerCommunicator;
 player_connector_t *playerSharedConnector;
-struct players_t *players;
+struct players_t *players; // Not for players processes
 
 WINDOW *win;
 
@@ -76,6 +76,7 @@ void prepareServer(void) {
     playerSharedConnector->justConnectedIndex = 0;
     for (int i = 0; i < MAX_PLAYER_COUNT; i++)
         playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
+
 }
 
 
@@ -133,6 +134,8 @@ void createCommunicator(void) {
             (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
    pthread_mutex_init(&playerControllerMutex, NULL);
+
+
 //   pthread_mutex_lock(&playerCommunicator->mutex);
 
 //   pthread_mutex_unlock(&playerCommunicator->mutex);
