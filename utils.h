@@ -11,6 +11,11 @@
 #define MAX_PLAYER_COUNT 4
 #define MAX_BEAST_COUNT 8
 
+
+#define LARGE_TREASURE_COINS 50
+#define TREASURE_COINS 10
+#define ONE_COIN 1
+
 #include <pthread.h>
 
 pthread_mutex_t playerConnectionMutex;
@@ -70,5 +75,11 @@ struct players_t {
     int totalPlayers;
 };
 
+typedef enum {
+    MOVE_LEFT,
+    MOVE_RIGHT,
+    MOVE_UP,
+    MOVE_DOWN,
+} player_move_dir;
 
 #endif //LABYRINTHGAME_UTILS_H

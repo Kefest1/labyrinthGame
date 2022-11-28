@@ -9,8 +9,26 @@
 
 int playerID;
 int playerProcessID;
-
-
+/*
+typedef enum {
+    WALL,
+    FREE_BLOCK,
+    LARGE_TREASURE,
+    TREASURE,
+    ONE_COIN,
+    BUSHES,
+    CAMPSITE,
+    DROPPED_TREASURE,
+    WILD_BEAST,
+    PLAYER_1,
+    PLAYER_2,
+    PLAYER_3,
+    PLAYER_4,
+    PLAYER_1_ON_BUSH,
+    PLAYER_2_ON_BUSH,
+    PLAYER_3_ON_BUSH,
+    PLAYER_4_ON_BUSH
+} field_status_t;*/
 player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
 

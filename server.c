@@ -195,6 +195,53 @@ int main(void) {
     return 0;
 }
 
+int movePlayer(int index, player_move_dir playerMoveDir) {
+    int xFrom = players->players[index].xPosition, xTo;
+    int yFrom = players->players[index].yPosition, yTo;
+    field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
+
+    if (playerMoveDir == MOVE_UP) {
+        xTo = xFrom - 1;
+        yTo = yFrom;
+    }
+
+    if (playerMoveDir == MOVE_DOWN) {
+        xTo = xFrom + 1;
+        yTo = yFrom;
+    }
+
+    if (playerMoveDir == MOVE_LEFT) {
+        xTo = xFrom;
+        yTo = yFrom - 1;
+    }
+
+    if (playerMoveDir == MOVE_RIGHT) {
+        xTo = xFrom;
+        yTo = yFrom + 1;
+    }
+
+    field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
+
+    if (fieldStatusTo == FREE_BLOCK)
+        return 0;
+    if (fieldStatusTo == WALL)
+        return 1;
+
+    if (fieldStatusTo == LARGE_TREASURE) {
+        players->players[index].coinsCarried = LARGE_TREASURE_COINS;
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+    }
+
+    if (fieldStatusTo == LARGE_TREASURE) {
+        players->players[index].coinsCarried = LARGE_TREASURE_COINS;
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+    }
+
+}
+
 
 void paintPlayer(int index, int x, int y) {
     wmove(win, x, y);
@@ -262,6 +309,10 @@ int *getRandomFreePosition(void) {
     *(buffArr + 1) = y;
 
     return buffArr;
+}
+
+field_status_t getFieldStatus(int x, int y) {
+    return fieldStatus[x][y];
 }
 
 field_status_t getStatusFromIndex(int index) {
