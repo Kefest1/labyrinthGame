@@ -210,18 +210,11 @@ void debugging(void) {
     keypad(inputWindow, true);
 
     int c = wgetch(inputWindow);
-    // if (c == KEY_UP)
-        mvwprintw(inputWindow, 1, 1, "KEY_UP");
+//    if (c == KEY_UP)
+
     refresh();
     wrefresh(inputWindow);
 
-    c = wgetch(inputWindow);
-//    if (c == KEY_DOWN)
-        mvwprintw(inputWindow, 1, 1, "KEY_DOWN");
-    refresh();
-    wrefresh(inputWindow);
-
-    mvwprintw(inputWindow, 1, 1, "dupa");
 }
 
 void playDebugging(void) {
