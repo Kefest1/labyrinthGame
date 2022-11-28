@@ -14,7 +14,7 @@
 
 #define LARGE_TREASURE_COINS 50
 #define TREASURE_COINS 10
-#define ONE_COIN 1
+#define ONE_COIN_COINS 1
 
 #include <pthread.h>
 
@@ -41,6 +41,8 @@ typedef struct {
     int coinsCarried;
     int coinsBrought;
     int deaths;
+
+    int locked;
 } player_t;
 
 typedef struct {

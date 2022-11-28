@@ -11,11 +11,11 @@ int playerID;
 int playerProcessID;
 /*
 typedef enum {
-    WALL,
-    FREE_BLOCK,
-    LARGE_TREASURE,
-    TREASURE,
-    ONE_COIN,
+//    WALL,
+//    FREE_BLOCK,
+//    LARGE_TREASURE,
+//    TREASURE,
+//    ONE_COIN,
     BUSHES,
     CAMPSITE,
     DROPPED_TREASURE,

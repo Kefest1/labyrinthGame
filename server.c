@@ -233,12 +233,30 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         players->players[index].yPosition = yTo;
     }
 
-    if (fieldStatusTo == LARGE_TREASURE) {
-        players->players[index].coinsCarried = LARGE_TREASURE_COINS;
+    if (fieldStatusTo == TREASURE) {
+        players->players[index].coinsCarried = TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
     }
+
+    if (fieldStatusTo == ONE_COIN) {
+        players->players[index].coinsCarried = ONE_COIN_COINS;
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+    }
+
+    if (fieldStatusTo == BUSHES) {
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+        fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
+
+    }
+
+
+
+
 
 }
 
@@ -320,4 +338,11 @@ field_status_t getStatusFromIndex(int index) {
     if (index == 1) return PLAYER_2;
     if (index == 2) return PLAYER_3;
     return PLAYER_4;
+}
+
+field_status_t getStatusFromIndexBushed(int index) {
+    if (index == 0) return PLAYER_1_ON_BUSH;
+    if (index == 1) return PLAYER_2_ON_BUSH;
+    if (index == 2) return PLAYER_3_ON_BUSH;
+    return PLAYER_4_ON_BUSH;
 }
