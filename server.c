@@ -202,17 +202,29 @@ int main(void) {
 
 void debugging(void) {
     noecho();
-    WINDOW *inputWindow = newwin(8, 8, 15, LABYRINTH_WIDTH + 3);
+    WINDOW *inputWindow = newwin(8, 32, 15, LABYRINTH_WIDTH + 3);
     box(inputWindow, 0, 0);
     refresh();
     wrefresh(inputWindow);
 
-    int c = getch();
-    mvwprintw(inputWindow, 1, 1, "huj");
+    keypad(inputWindow, true);
+
+    int c = wgetch(inputWindow);
+    // if (c == KEY_UP)
+        mvwprintw(inputWindow, 1, 1, "KEY_UP");
     refresh();
     wrefresh(inputWindow);
 
+    c = wgetch(inputWindow);
+//    if (c == KEY_DOWN)
+        mvwprintw(inputWindow, 1, 1, "KEY_DOWN");
+    refresh();
+    wrefresh(inputWindow);
 
+    mvwprintw(inputWindow, 1, 1, "dupa");
+}
+
+void playDebugging(void) {
 
 }
 
@@ -246,6 +258,9 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         xTo = xFrom;
         yTo = yFrom + 1;
     }
+
+    if (players->players[index].locked)
+        return players->players[index].locked = 0, 1;
 
     goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
 
@@ -330,6 +345,7 @@ void paintPlayer(int index, int x, int y) {
     wrefresh(win);
     refresh();
 }
+
 
 void readMap(void) {
     FILE *fp = fopen(MAP_FILENAME, "r");
