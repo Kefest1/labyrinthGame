@@ -84,4 +84,9 @@ typedef enum {
     MOVE_DOWN,
 } player_move_dir;
 
+typedef struct {
+    int x;
+    int y;
+} campsite_t;
+
 #endif //LABYRINTHGAME_UTILS_H

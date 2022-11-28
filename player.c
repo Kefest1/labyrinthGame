@@ -5,7 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
-// TODO FAIL IS DOESN'T EXIST
+// TODO FAIL IF DOESN'T EXIST
 
 int playerID;
 int playerProcessID;
@@ -16,9 +16,9 @@ typedef enum {
 //    LARGE_TREASURE,
 //    TREASURE,
 //    ONE_COIN,
-    BUSHES,
-    CAMPSITE,
-    DROPPED_TREASURE,
+//    BUSHES,
+//    CAMPSITE,
+//    DROPPED_TREASURE,
     WILD_BEAST,
     PLAYER_1,
     PLAYER_2,

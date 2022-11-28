@@ -11,6 +11,8 @@ int *getRandomFreePosition(void);
 void paintPlayer(int index, int x, int y);
 void displayMap(void);
 field_status_t getStatusFromIndex(int index);
-getStatusFromIndexBushed(int index);
+field_status_t getStatusFromIndexBushed(int index);
+int getDroppedTreasureCoins(int x, int y);
+void debugging();
 
 #endif //LABYRINTHGAME_SERVER_H

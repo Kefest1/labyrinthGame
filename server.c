@@ -18,12 +18,14 @@
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
+dropped_treasure_t droppedTreasure[50];
+int droppedTreasureCount;
+
 struct communicator_t *playerCommunicator;
 player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
 
 WINDOW *win;
-
 
 // <Statistics here:> //
 
@@ -63,6 +65,7 @@ void createAndDisplayServerStatistics(void) {
 }
 
 void prepareServer(void) {
+    droppedTreasureCount = 0;
     readMap();
     pthread_mutex_init(&playerConnectionMutex, NULL);
 
@@ -186,7 +189,9 @@ int main(void) {
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-    sleep(3);
+
+    debugging();
+    sleep(8);
     shmdt(playerSharedConnector);
     free(players);
 
@@ -195,10 +200,32 @@ int main(void) {
     return 0;
 }
 
+void debugging(void) {
+    noecho();
+    WINDOW *inputWindow = newwin(8, 8, 15, LABYRINTH_WIDTH + 3);
+    box(inputWindow, 0, 0);
+    refresh();
+    wrefresh(inputWindow);
+
+    int c = getch();
+    mvwprintw(inputWindow, 1, 1, "huj");
+    refresh();
+    wrefresh(inputWindow);
+
+
+
+}
+
 int movePlayer(int index, player_move_dir playerMoveDir) {
     int xFrom = players->players[index].xPosition, xTo;
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
+
+    int willMove;
+    int isOnBushes = fieldStatusFrom == getStatusFromIndexBushed(index);
+
+    int isOnCampsite = (xFrom == campsiteXCoordinate) && (yFrom == campsiteXCoordinate);
+    int goingToCampsite;
 
     if (playerMoveDir == MOVE_UP) {
         xTo = xFrom - 1;
@@ -220,6 +247,9 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         yTo = yFrom + 1;
     }
 
+    goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
+
+
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
 
     if (fieldStatusTo == FREE_BLOCK)
@@ -228,20 +258,20 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         return 1;
 
     if (fieldStatusTo == LARGE_TREASURE) {
-        players->players[index].coinsCarried = LARGE_TREASURE_COINS;
+        players->players[index].coinsCarried += LARGE_TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
     }
 
     if (fieldStatusTo == TREASURE) {
-        players->players[index].coinsCarried = TREASURE_COINS;
+        players->players[index].coinsCarried += TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
     }
 
     if (fieldStatusTo == ONE_COIN) {
-        players->players[index].coinsCarried = ONE_COIN_COINS;
+        players->players[index].coinsCarried += ONE_COIN_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
@@ -250,7 +280,40 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     if (fieldStatusTo == BUSHES) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
+        players->players[index].locked = 1;
         fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
+    }
+
+    if (fieldStatusTo == CAMPSITE) {
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+        players->players[index].coinsBrought += players->players[index].coinsCarried;
+        players->players[index].coinsCarried = 0;
+
+        fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
+    }
+
+    if (fieldStatusTo == DROPPED_TREASURE) {
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+        players->players[index].coinsCarried += getDroppedTreasureCoins(xTo, yTo);
+
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+    }
+
+    if (fieldStatusTo == PLAYER_1) {
+
+    }
+
+    if (fieldStatusTo == PLAYER_2) {
+
+    }
+
+    if (fieldStatusTo == PLAYER_3) {
+
+    }
+
+    if (fieldStatusTo == PLAYER_4) {
 
     }
 
@@ -339,10 +402,17 @@ field_status_t getStatusFromIndex(int index) {
     if (index == 2) return PLAYER_3;
     return PLAYER_4;
 }
-
 field_status_t getStatusFromIndexBushed(int index) {
     if (index == 0) return PLAYER_1_ON_BUSH;
     if (index == 1) return PLAYER_2_ON_BUSH;
     if (index == 2) return PLAYER_3_ON_BUSH;
     return PLAYER_4_ON_BUSH;
+}
+
+int getDroppedTreasureCoins(int x, int y) {
+    for (int i = 0; i < droppedTreasureCount; i++)
+        if (droppedTreasure[i].x == x && droppedTreasure[i].y == y)
+            return droppedTreasure->coins;
+
+    return TREASURE_COINS;
 }

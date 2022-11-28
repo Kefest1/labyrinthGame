@@ -31,10 +31,13 @@ struct communicator_t {
     int coinsPicked[MAX_PLAYERS];
     int deaths[MAX_PLAYERS];
 
-
-
     int currentlyMovingPlayerIndex;
-
 };
+
+typedef struct {
+    int x;
+    int y;
+    int coins;
+} dropped_treasure_t;
 
 #endif //LABYRINTHGAME_COMMUNICATOR_H
