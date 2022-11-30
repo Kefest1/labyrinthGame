@@ -5,6 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
+#include <stdlib.h>
 // TODO FAIL IF DOESN'T EXIST
 
 int playerID;
@@ -111,10 +112,10 @@ void *gameMove(void *ptr) {
 }
 
 int main(void) {
-    int x = getchar();
-    printf("\"%c\"\n", x);
-//    if (establishConnection() == -1)
-//        return puts("Failed to connect.\nServer is yet to start"), 1;
-
+//    int x = getchar();
+//    printf("\"%c\"\n", x);
+    if (establishConnection() == -1)
+        return puts("Failed to connect.\nServer is yet to start"), 1;
+//    setenv("TERMINFO","/usr/share/terminfo", 1);
     return 0;
 }

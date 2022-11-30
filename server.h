@@ -16,5 +16,6 @@ int getDroppedTreasureCoins(int x, int y);
 void debugging();
 void testKeys(void);
 void playDebugging(void);
+int movePlayer(int index, player_move_dir playerMoveDir);
 
 #endif //LABYRINTHGAME_SERVER_H

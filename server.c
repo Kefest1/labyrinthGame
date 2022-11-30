@@ -15,6 +15,7 @@
 #define WALL_CHAR '█'
 #define WALL_CHAR_REPLACED 'O'  // Since c doesn't like █ to be a char
 #define BUSH_CHAR '#'
+int debugging_counter = 2;
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
@@ -26,7 +27,7 @@ player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
 
 WINDOW *win;
-
+WINDOW *inputWindow;
 // <Statistics here:> //
 
 int xCaptionStartLoc = 1;
@@ -202,15 +203,28 @@ int main(void) {
 
 void debugging(void) {
     noecho();
-    WINDOW *inputWindow = newwin(8, 32, 15, LABYRINTH_WIDTH + 3);
+    inputWindow = newwin(8, 32, 15, LABYRINTH_WIDTH + 3);
     box(inputWindow, 0, 0);
     refresh();
     wrefresh(inputWindow);
 
     keypad(inputWindow, true);
+    int c;
 
-    int c = wgetch(inputWindow);
-//    if (c == KEY_UP)
+
+    do {
+        c = wgetch(inputWindow);
+        mvwprintw(inputWindow, 1, 1,"Pressed: %c", c);
+        if (c == KEY_UP)
+            movePlayer(0, MOVE_UP);
+        if (c == KEY_DOWN)
+            movePlayer(0, MOVE_DOWN);
+        if (c == KEY_LEFT)
+            movePlayer(0, MOVE_LEFT);
+        if (c == KEY_RIGHT)
+            movePlayer(0, MOVE_RIGHT);
+    } while (c != 'q');
+
 
     refresh();
     wrefresh(inputWindow);
@@ -222,6 +236,7 @@ void playDebugging(void) {
 }
 
 int movePlayer(int index, player_move_dir playerMoveDir) {
+    mvwprintw(inputWindow, 2, 1, "Trying to move...");
     int xFrom = players->players[index].xPosition, xTo;
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
@@ -257,78 +272,155 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
     goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
 
-
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
 
-    if (fieldStatusTo == FREE_BLOCK)
-        return 0;
-    if (fieldStatusTo == WALL)
-        return 1;
+    if (fieldStatusTo == FREE_BLOCK) {
+        mvwprintw(inputWindow, debugging_counter++, 1, "Moves");
 
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
+
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+
+        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+    }
+    if (fieldStatusTo == WALL) {
+
+        return 1; // Broadcast communicat
+    }
     if (fieldStatusTo == LARGE_TREASURE) {
         players->players[index].coinsCarried += LARGE_TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
-    }
 
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
+
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+        mvwprintw(win, xFrom, yFrom, " ");
+        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+
+    }
     if (fieldStatusTo == TREASURE) {
         players->players[index].coinsCarried += TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
-        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
-    }
 
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
+
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+
+        mvwprintw(win, xFrom, yFrom, " ");
+        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+    }
     if (fieldStatusTo == ONE_COIN) {
         players->players[index].coinsCarried += ONE_COIN_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
-        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
-    }
 
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
+
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+
+        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+    }
     if (fieldStatusTo == BUSHES) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         players->players[index].locked = 1;
         fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
-    }
 
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
+        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+    }
     if (fieldStatusTo == CAMPSITE) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         players->players[index].coinsBrought += players->players[index].coinsCarried;
+        // TODO refresh statistics
         players->players[index].coinsCarried = 0;
+
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
 
         fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
     }
-
     if (fieldStatusTo == DROPPED_TREASURE) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         players->players[index].coinsCarried += getDroppedTreasureCoins(xTo, yTo);
 
-        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
-    }
+        if (isOnBushes) {
+            fieldStatus[xFrom][yFrom] = BUSHES;
+            mvwprintw(win, xFrom, yFrom, "#");
+        }
+        else {
+            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+            mvwprintw(win, xFrom, yFrom, " ");
+        }
 
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+
+
+    }
     if (fieldStatusTo == PLAYER_1) {
 
     }
-
     if (fieldStatusTo == PLAYER_2) {
 
     }
-
     if (fieldStatusTo == PLAYER_3) {
 
     }
-
     if (fieldStatusTo == PLAYER_4) {
 
     }
 
+    players->players[index].xPosition = xTo;
+    players->players[index].yPosition = yTo;
+    wrefresh(win);
+    refresh();
 
-
-
-
+    return 0;
 }
 
 
