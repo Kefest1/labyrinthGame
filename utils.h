@@ -11,7 +11,6 @@
 #define MAX_PLAYER_COUNT 4
 #define MAX_BEAST_COUNT 8
 
-
 #define LARGE_TREASURE_COINS 50
 #define TREASURE_COINS 10
 #define ONE_COIN_COINS 1
@@ -31,7 +30,11 @@ typedef struct {
     int justConnectedIndex;
     int totalPlayers;
     player_status playerStatus[MAX_PLAYER_COUNT];
+
+
 } player_connector_t;
+
+
 
 typedef struct {
     int xPosition;

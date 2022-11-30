@@ -13,8 +13,9 @@
 #define LABYRINTH_HEIGHT 25
 #define MAP_FILENAME "map.txt"
 #define WALL_CHAR '█'
-#define WALL_CHAR_REPLACED 'O'  // Since c doesn't like █ to be a char
+#define WALL_CHAR_REPLACED 'O'
 #define BUSH_CHAR '#'
+
 int debugging_counter = 2;
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
@@ -28,6 +29,7 @@ struct players_t *players; // Not for players processes
 
 WINDOW *win;
 WINDOW *inputWindow;
+
 // <Statistics here:> //
 
 int xCaptionStartLoc = 1;
@@ -44,6 +46,7 @@ int roundNumber;
 
 void createAndDisplayServerStatistics(void) {
     serverProcessId = getpid();
+
     roundNumber = 0;
     int i = 0;
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Server's PID: %d", serverProcessId);
@@ -66,14 +69,19 @@ void createAndDisplayServerStatistics(void) {
 }
 
 void prepareServer(void) {
+    noecho();
     droppedTreasureCount = 0;
     readMap();
+
     pthread_mutex_init(&playerConnectionMutex, NULL);
 
     players = calloc(1, sizeof(struct players_t));
 
-    int sharedBlockId = shmget(ftok(FILE_CONNECTOR, 0), sizeof(player_connector_t), 0644 | IPC_CREAT);
+    key_t key = ftok(FILE_CONNECTOR, 0);
+    int sharedBlockId =
+            shmget(key, sizeof(player_connector_t), 0644 | IPC_CREAT);
     playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
+
 
     playerSharedConnector->totalPlayers = 0;
     playerSharedConnector->playerConnected = 0;
@@ -83,20 +91,44 @@ void prepareServer(void) {
 
 }
 
-_Noreturn void *inputsListener(__attribute__((unused)) void *ptr) {
+void *inputListener(__attribute__((unused)) void *ptr) {
     int inputChar;
 
     do {
         inputChar = getch();
+        int *arr = getRandomFreePosition();
+        int x = arr[0];
+        int y = arr[1];
 
+        if (inputChar == 'c') {
+            fieldStatus[x][y] = ONE_COIN;
+            mvwprintw(win, x, y, "c");
+        }
+        if (inputChar == 't') {
+            fieldStatus[x][y] = TREASURE;
+            mvwprintw(win, x, y, "t");
+        }
+        if (inputChar == 'T') {
+            fieldStatus[x][y] = LARGE_TREASURE;
+            mvwprintw(win, x, y, "T");
+        }
+
+        wrefresh(win);
+        refresh();
+
+        free(arr);
     } while (inputChar != 'q' && inputChar != 'Q');
 
     // finalize()
+
+
+    return NULL;
 }
 
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
+        /*
         pthread_mutex_lock(&playerConnectionMutex);
         if (playerSharedConnector->playerConnected == 1) {
             playerSharedConnector->playerConnected = 0;
@@ -112,6 +144,10 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             playerSharedConnector->playerStatus[index] = CONNECTED;
             players->players[index].player_id = index;
+            mvprintw(6, 68 + index * 9, "%d", );
+            // wrefresh(win);
+            refresh();
+
             players->players[index].deaths = 0;
             players->players[index].coinsCarried = 0;
             players->players[index].coinsBrought = 0;
@@ -135,6 +171,7 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
         }
         pthread_mutex_unlock(&playerConnectionMutex);
     }
+         */
 
 }
 
@@ -196,13 +233,14 @@ int main(void) {
     displayMap();
     createAndDisplayServerStatistics();
     createCommunicator();
-    pthread_t playerListenerThread;
+    pthread_t playerListenerThread, inputListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
+    pthread_create(&inputListenerThread, NULL, inputListener, NULL);
 
     // pthread_join(playerListenerThread, NULL);
 
-    debugging();
-    sleep(8);
+//    debugging();
+    pthread_join(playerListenerThread, NULL);
     shmdt(playerSharedConnector);
     free(players);
 
@@ -220,7 +258,6 @@ void debugging(void) {
 
     keypad(inputWindow, true);
     int c;
-
 
     do {
         c = wgetch(inputWindow);
@@ -440,6 +477,7 @@ void paintPlayer(int index, int x, int y) {
     wrefresh(win);
     refresh();
 }
+
 
 
 void readMap(void) {
