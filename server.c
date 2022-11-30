@@ -53,7 +53,7 @@ void createAndDisplayServerStatistics(void) {
     mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Parameter:   Player1  Player2  Player3  Player4");
     i++;
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "PID");
-    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
+//    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Curr X/Y");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Deaths");
     i++;
@@ -83,6 +83,16 @@ void prepareServer(void) {
 
 }
 
+_Noreturn void *inputsListener(__attribute__((unused)) void *ptr) {
+    int inputChar;
+
+    do {
+        inputChar = getch();
+
+    } while (inputChar != 'q' && inputChar != 'Q');
+
+    // finalize()
+}
 
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
