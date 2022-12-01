@@ -23,7 +23,7 @@ field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 dropped_treasure_t droppedTreasure[50];
 int droppedTreasureCount;
 
-struct communicator_t *playerCommunicator;
+struct communicator_t *playerCommunicator[MAX_PLAYER_COUNT];
 player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
 
@@ -76,19 +76,6 @@ void prepareServer(void) {
     pthread_mutex_init(&playerConnectionMutex, NULL);
 
     players = calloc(1, sizeof(struct players_t));
-
-    key_t key = ftok(FILE_CONNECTOR, 0);
-    int sharedBlockId =
-            shmget(key, sizeof(player_connector_t), 0644 | IPC_CREAT);
-    playerSharedConnector = (player_connector_t *) shmat(sharedBlockId, NULL, 0);
-
-
-    playerSharedConnector->totalPlayers = 0;
-    playerSharedConnector->playerConnected = 0;
-    playerSharedConnector->justConnectedIndex = 0;
-    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-        playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
-
 }
 
 void *inputListener(__attribute__((unused)) void *ptr) {
@@ -128,23 +115,41 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
-        /*
         pthread_mutex_lock(&playerConnectionMutex);
         if (playerSharedConnector->playerConnected == 1) {
             playerSharedConnector->playerConnected = 0;
-            playerSharedConnector->justConnectedIndex = findFreeIndex();
-            int index = playerSharedConnector->justConnectedIndex;
+            int indexAt = findFreeIndex();
 
-            if (index == -1) {
-                puts("Player couldn't connect (game is full)");
+            if (indexAt == -1) {
+                puts("Player couldn't connect (the game is full)");
 
                 pthread_mutex_unlock(&playerConnectionMutex);
                 continue;
             }
 
-            playerSharedConnector->playerStatus[index] = CONNECTED;
-            players->players[index].player_id = index;
-            mvprintw(6, 68 + index * 9, "%d", );
+            pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
+
+            playerCommunicator[indexAt]->playerIndex = findFreeIndex();
+
+            playerSharedConnector[indexAt]->playerStatus = CONNECTED;
+
+            int *arr = getRandomFreePosition();
+
+            playerCommunicator[indexAt]->currentlyAtX = arr[0];
+            playerCommunicator[indexAt]->currentlyAtY = arr[1];
+
+            playerCommunicator[indexAt]->startAtX = arr[0];
+            playerCommunicator[indexAt]->startAtY = arr[1];
+
+            players->players->xPosition = arr[0];
+            players->players->yPosition = arr[1];
+
+            players->players->xStartPosition = arr[0];
+            players->players->yStartPosition = arr[1];
+
+            paintPlayer(indexAt, *(arr + 0), *(arr + 1));
+
+            mvprintw(6, 68 + indexAt * 9, "0");
             // wrefresh(win);
             refresh();
 
@@ -153,39 +158,57 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             players->players[index].coinsBrought = 0;
             players->totalPlayers++;
 
-            int *tempArr = getRandomFreePosition();
-
-            players->players->xPosition = *tempArr;
-            players->players->yPosition = *(tempArr + 1);
-            paintPlayer(index, *(tempArr + 0), *(tempArr + 1));
-            fieldStatus[*tempArr][*(tempArr + 1)] = getStatusFromIndex(index);
-
-            wmove(win, *tempArr, *(tempArr + 1));
-            wprintw(win, "%c", (char) (index + '0' + 1));
-            refresh();
-            wrefresh(win);
-
-            free(tempArr);
+            fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
+            free(arr);
             // printf("Player %d has connected\n", index);
             // printf("Total players = %d\n", players->totalPlayers);
+
+            pthread_mutex_unlock(playerCommunicator[indexAt]->connectorMutex);
+
         }
         pthread_mutex_unlock(&playerConnectionMutex);
     }
-         */
+
+
+}
+
+void createConnector(void) {
+    key_t key = ftok(FILE_CONNECTOR, 0);
+
+    int sharedBlockId = shmget(key, sizeof(player_connector_t), IPC_CREAT);
+
+    playerSharedConnector =
+            (player_connector_t *) shmat(sharedBlockId, NULL, 0);
+
+
 
 }
 
 void createCommunicator(void) {
 
-    key_t key = ftok(FILE_CONTROLLER, 0);
-    int sharedBlockId = shmget(key, sizeof(struct communicator_t),
-                               IPC_CREAT);
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
 
-    playerCommunicator =
-            (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
+        key_t key = ftok(FILE_COMMUNICATOR, i);
 
-   pthread_mutex_init(&playerControllerMutex, NULL);
+        int sharedBlockId =
+                shmget(key, sizeof(struct communicator_t), 0644 | IPC_CREAT);
 
+        *(playerCommunicator + i) = (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
+
+        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
+
+        pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
+
+        (*(playerCommunicator + i))->playerIndex = i;
+
+
+//        playerSharedConnector->totalPlayerCount = 0;
+//        playerSharedConnector->playerConnected = 0;
+//        playerSharedConnector->justConnectedIndex = 0;
+//        for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+//            playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
+
+    }
 
 //   pthread_mutex_lock(&playerCommunicator->mutex);
 
@@ -229,7 +252,10 @@ void displayMap(void) {
 
 
 int main(void) {
-    prepareServer();
+    createCommunicator();
+
+
+    /*prepareServer();
     displayMap();
     createAndDisplayServerStatistics();
     createCommunicator();
@@ -245,7 +271,7 @@ int main(void) {
     free(players);
 
     endwin();
-
+*/
     return 0;
 }
 
@@ -472,8 +498,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
 
 void paintPlayer(int index, int x, int y) {
-    wmove(win, x, y);
-    wprintw(win, "%c", (char) (index + '0' + 1));
+    // wmove(win, x, y);
+    wmvprintw(win, x, y, "%c", (char) (index + '0' + 1));
     wrefresh(win);
     refresh();
 }
@@ -515,7 +541,7 @@ void readMap(void) {
 int findFreeIndex(void) {
     int freePos = -1;
     for (int i = 0; i < 4; i++) {
-        if (playerSharedConnector->playerStatus[i] == NOT_CONNECTED) {
+        if (playerCommunicator[i]->playerStatus == NOT_CONNECTED) {
             freePos = i;
             break;
         }

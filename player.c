@@ -61,25 +61,20 @@ int establishConnection(void) {
 
     pthread_mutex_lock(&playerConnectionMutex);
 
-    if (playerConnector->totalPlayers == MAX_PLAYER_COUNT) {
+    if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
         puts("Too many players\nTry again later.");
     }
     else {
         puts("Connected successfully");
-        for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
-            if (playerConnector->playerStatus[i] == NOT_CONNECTED) {
-                playerID = i;
-                break;
-            }
-        }
-        playerConnector->totalPlayers++;
+        playerID = playerConnector->freeIndex;
+        playerConnector->totalPlayerCount++;
     }
     playerConnector->playerConnected = 1;
 
     // Already locked! //
-    //connectToCommunicator(playerID);
+     connectToCommunicator(playerID);
 
-    printf("Currently %d players\n", playerConnector->totalPlayers);
+    printf("Currently %d players\n", playerConnector->totalPlayerCount);
 
     pthread_mutex_unlock(&playerConnectionMutex);
 
@@ -87,7 +82,7 @@ int establishConnection(void) {
 }
 
 int connectToCommunicator(int playerConnectionIndex) {
-    key_t key = ftok(FILE_CONTROLLER, 0);
+    key_t key = ftok(FILE_COMMUNICATOR, playerConnectionIndex);
     int sharedBlockId = shmget(key, sizeof(struct communicator_t),
                                IPC_CREAT);
 
@@ -96,7 +91,13 @@ int connectToCommunicator(int playerConnectionIndex) {
 
     pthread_mutex_lock(&playerConnectionMutex);
 
-    playerCommunicator->isConnected[playerConnectionIndex] = 1;
+    playerCommunicator->playerStatus = CONNECTED;
+    playerCommunicator->currentlyMoving = 0;
+
+    playerCommunicator->coinsPicked = 0;
+    playerCommunicator->coinsBrought = 0;
+    playerCommunicator->deaths = 0;
+
 
     pthread_mutex_unlock(&playerConnectionMutex);
 

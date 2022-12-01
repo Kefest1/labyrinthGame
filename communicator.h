@@ -7,6 +7,7 @@
 
 #include "utils.h"
 #include <semaphore.h>
+
 #define MAX_PLAYERS MAX_PLAYER_COUNT
 
 #define RANGE_OF_VIEW 5
@@ -19,19 +20,42 @@ typedef struct {
     int campsiteY;
 } map_around_t;
 
+
+// Shared between one player and server //
+struct player_server_communicator_t {
+    player_move_dir playerMoveDir;
+
+    int playerIndex;
+    int playerProcessID;
+
+    int coinsBrought;
+    int coinsCarried;
+};
+
 struct communicator_t {
+    pthread_mutex_t *connectorMutex;
 //    sem_t semaphore;
 
-    char playerInput[MAX_PLAYERS]; // If not given -> same as previous
+    char playerInput; // If not given -> same as previous
     // If wrong -> nothing will happen
 
-    _Bool isConnected[MAX_PLAYERS];
-    _Bool currentlyMoving[MAX_PLAYERS];
-    map_around_t mapAround[MAX_PLAYERS];
-    int coinsPicked[MAX_PLAYERS];
-    int deaths[MAX_PLAYERS];
+    player_status playerStatus;
+    _Bool currentlyMoving;
+    map_around_t mapAround;
 
-    int currentlyMovingPlayerIndex;
+    int coinsPicked;
+    int coinsBrought;
+    int deaths;
+
+    _Bool isCollision;
+
+    int playerIndex;
+
+    int currentlyAtX;
+    int currentlyAtY;
+
+    int startAtX;
+    int startAtY;
 };
 
 typedef struct {

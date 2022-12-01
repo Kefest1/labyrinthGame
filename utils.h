@@ -6,7 +6,7 @@
 #define LABYRINTHGAME_UTILS_H
 
 #define FILE_CONNECTOR "player.c"
-#define FILE_CONTROLLER "server.c"
+#define FILE_COMMUNICATOR "server.c"
 
 #define MAX_PLAYER_COUNT 4
 #define MAX_BEAST_COUNT 8
@@ -25,13 +25,22 @@ typedef enum {
     CONNECTED
 } player_status;
 
+// Shared between player processes //
 typedef struct {
+    pthread_mutex_t *pthreadMutex;
+
     _Bool playerConnected;
-    int justConnectedIndex;
-    int totalPlayers;
-    player_status playerStatus[MAX_PLAYER_COUNT];
+    int totalPlayerCount;
+    int freeIndex; // Doesn't matter if max //
 
 
+    // int justConnectedIndex;
+    // int totalPlayers;
+    // player_status playerStatus[MAX_PLAYER_COUNT];
+    // int totalPlayers;
+    // FreeIndex
+    // PlayerProcessID
+    
 } player_connector_t;
 
 
@@ -40,10 +49,14 @@ typedef struct {
     int xPosition;
     int yPosition;
 
+    int xStartPosition;
+    int yStartPosition;
+
     int player_id;
     int coinsCarried;
     int coinsBrought;
     int deaths;
+
 
     int locked;
 } player_t;
@@ -51,6 +64,7 @@ typedef struct {
 typedef struct {
     int xPosition;
     int yPosition;
+    int isOnBushes;
 } wild_beast_t;
 
 typedef enum {
