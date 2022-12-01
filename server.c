@@ -131,7 +131,7 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             playerCommunicator[indexAt]->playerIndex = findFreeIndex();
 
-            playerSharedConnector[indexAt]->playerStatus = CONNECTED;
+            playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
             int *arr = getRandomFreePosition();
 
@@ -153,9 +153,9 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             // wrefresh(win);
             refresh();
 
-            players->players[index].deaths = 0;
-            players->players[index].coinsCarried = 0;
-            players->players[index].coinsBrought = 0;
+            players->players[indexAt].deaths = 0;
+            players->players[indexAt].coinsCarried = 0;
+            players->players[indexAt].coinsBrought = 0;
             players->totalPlayers++;
 
             fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
@@ -499,7 +499,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
 void paintPlayer(int index, int x, int y) {
     // wmove(win, x, y);
-    wmvprintw(win, x, y, "%c", (char) (index + '0' + 1));
+    mvwprintw(win, x, y, "%c", (char) (index + '0' + 1));
     wrefresh(win);
     refresh();
 }
