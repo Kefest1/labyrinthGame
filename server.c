@@ -116,11 +116,10 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 }
 
 void *playerActionListener(void *ptr) {
+    sleep(2u);
 
     e:
-
     while (players->totalPlayers > 0) {
-        sleep(5);
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
@@ -130,13 +129,14 @@ void *playerActionListener(void *ptr) {
                 playerCommunicator[i]->currentlyMoving = 1;
 
                 sleep(ROUND_DURATION_SECONDS);
-
+                mvprintw(17, 60, "%d", playerCommunicator[i]->playerInput);
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
 
                 if (moveDir == PLAYER_QUIT) {
                     // TODO playerQuit() //
                 }
                 movePlayer(i, moveDir);
+                mvprintw(17, 60, "%d", moveDir);
 
                 playerCommunicator[i]->currentlyMoving = 0;
             }
@@ -244,13 +244,6 @@ void createCommunicator(void) {
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
 
-
-//        playerSharedConnector->totalPlayerCount = 0;
-//        playerSharedConnector->playerConnected = 0;
-//        playerSharedConnector->justConnectedIndex = 0;
-//        for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-//            playerSharedConnector->playerStatus[i] = NOT_CONNECTED;
-
     }
 
 
@@ -320,7 +313,7 @@ int main(void) {
 
     endwin();
 */
-    sleep(12);
+    sleep(16);
 
     finalize();
     return 0;
@@ -372,7 +365,7 @@ void playDebugging(void) {
 }
 
 int movePlayer(int index, player_move_dir playerMoveDir) {
-    mvwprintw(inputWindow, 2, 1, "Trying to move...");
+    //mvwprintw(inputWindow, 2, 1, "Trying to move...");
     int xFrom = players->players[index].xPosition, xTo;
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];

@@ -39,6 +39,9 @@ struct communicator_t *playerCommunicator;
 
 pthread_t keyListenerThread;
 
+WINDOW *messagesWindow;
+WINDOW *map;
+
 int checkIfConnectorExist(void) {
     errno = 0;
 
@@ -70,7 +73,7 @@ int establishConnection(void) {
         puts("Too many players\nTry again later.");
     }
     else {
-        puts("Connected successfully");
+//        puts("Connected successfully");
         playerID = playerConnector->freeIndex;
 
         refresh();
@@ -86,6 +89,9 @@ int establishConnection(void) {
 
     return 0;
 }
+
+#define LABYRINTH_WIDTH  51
+#define LABYRINTH_HEIGHT 25
 
 int connectToCommunicator(int playerConnectionIndex) {
     key_t key = ftok(FILE_COMMUNICATOR, playerConnectionIndex);
@@ -103,27 +109,41 @@ int connectToCommunicator(int playerConnectionIndex) {
 }
 
 void *getInputThread(void *ptr) {
+    return NULL;
+}
 
+void createMessageWindow(void) {
+    messagesWindow = newwin(7, 32, 15, 60);
+    refresh();
+    box(messagesWindow, 0, 0);
+    wrefresh(messagesWindow);
 }
 
 void *gameMove(void *ptr) {
-    mvprintw(4, 4, "Here");
-    refresh();
+    e:
+
+
     while (playerCommunicator->currentlyMoving == 0);
 
-    mvprintw(5, 5, "Your turn!         ");
+    mvwprintw(messagesWindow, 1, 1, "Your turn!         ");
+    wrefresh(messagesWindow);
+
+    //sleep(ROUND_DURATION_SECONDS);
+    int input = getch(); //KEY_LEFT; // getch();
+    mvwprintw(messagesWindow, 2, 2, "%d", input);
+    wrefresh(messagesWindow);
+
     refresh();
 
-    int input = getch();
-
-    if (playerCommunicator->currentlyMoving)
-        playerCommunicator->playerInput = input;
-
+    playerCommunicator->playerInput = input;
     while (playerCommunicator->currentlyMoving == 1);
 
-    mvprintw(5, 5, "Wait for your turn!");
+    mvwprintw(messagesWindow, 2, 2, "Wait for your turn!");
+    wrefresh(messagesWindow);
 
     refresh();
+
+    goto e;
 
     return NULL;
 }
@@ -131,6 +151,9 @@ void *gameMove(void *ptr) {
 int main(void) {
     initscr();
     refresh();
+
+    // noecho();
+    createMessageWindow();
 
     if (establishConnection() == -1)
         return puts("Failed to connect.\nServer is yet to start"), 1;
