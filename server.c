@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
 #define MAP_FILENAME "map.txt"
@@ -27,8 +26,12 @@ struct communicator_t *playerCommunicator[MAX_PLAYER_COUNT];
 player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
 
+void finalize();
+
 WINDOW *win;
 WINDOW *inputWindow;
+
+pthread_t playerListenerThread, inputListenerThread, playerKeyListener;
 
 // <Statistics here:> //
 
@@ -112,42 +115,80 @@ void *inputListener(__attribute__((unused)) void *ptr) {
     return NULL;
 }
 
+void *playerActionListener(void *ptr) {
+
+    e:
+
+    while (players->totalPlayers > 0) {
+        sleep(5);
+
+        for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
+            if (playerCommunicator[i]->playerStatus == CONNECTED) {
+
+                wrefresh(win);
+                refresh();
+                playerCommunicator[i]->currentlyMoving = 1;
+
+                sleep(ROUND_DURATION_SECONDS);
+
+                player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
+
+                if (moveDir == PLAYER_QUIT) {
+                    // TODO playerQuit() //
+                }
+                movePlayer(i, moveDir);
+
+                playerCommunicator[i]->currentlyMoving = 0;
+            }
+        }
+    }
+
+    goto e;
+
+    return NULL;
+}
+
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
-        pthread_mutex_lock(&playerConnectionMutex);
+
         if (playerSharedConnector->playerConnected == 1) {
             playerSharedConnector->playerConnected = 0;
+
             int indexAt = findFreeIndex();
+//            printf("Conntected at %d index\n", indexAt);
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
 
-                pthread_mutex_unlock(&playerConnectionMutex);
+//                pthread_mutex_unlock(&playerConnectionMutex);
                 continue;
             }
 
             pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
 
-            playerCommunicator[indexAt]->playerIndex = findFreeIndex();
-
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
+
+            playerSharedConnector->freeIndex = findFreeIndex();
+            mvprintw(16, 60, "%d", playerSharedConnector->freeIndex);
+            refresh();
 
             int *arr = getRandomFreePosition();
 
             playerCommunicator[indexAt]->currentlyAtX = arr[0];
             playerCommunicator[indexAt]->currentlyAtY = arr[1];
 
-            playerCommunicator[indexAt]->startAtX = arr[0];
-            playerCommunicator[indexAt]->startAtY = arr[1];
+            players->players[indexAt].xPosition = arr[0];
+            players->players[indexAt].yPosition = arr[1];
 
-            players->players->xPosition = arr[0];
-            players->players->yPosition = arr[1];
+            players->players[indexAt].xStartPosition = arr[0];
+            players->players[indexAt].yStartPosition = arr[1];
 
-            players->players->xStartPosition = arr[0];
-            players->players->yStartPosition = arr[1];
+            playerCommunicator[indexAt]->coinsPicked = 0;
+            playerCommunicator[indexAt]->coinsBrought = 0;
+            playerCommunicator[indexAt]->deaths = 0;
 
-            paintPlayer(indexAt, *(arr + 0), *(arr + 1));
+            paintPlayer(indexAt, arr[0], arr[1]);
 
             mvprintw(6, 68 + indexAt * 9, "0");
             // wrefresh(win);
@@ -156,20 +197,19 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             players->players[indexAt].deaths = 0;
             players->players[indexAt].coinsCarried = 0;
             players->players[indexAt].coinsBrought = 0;
-            players->totalPlayers++;
+            players->totalPlayers += 1;
+
+            playerSharedConnector->totalPlayerCount++;
 
             fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
             free(arr);
             // printf("Player %d has connected\n", index);
             // printf("Total players = %d\n", players->totalPlayers);
 
-            pthread_mutex_unlock(playerCommunicator[indexAt]->connectorMutex);
+//            pthread_mutex_unlock(playerCommunicator[indexAt]->connectorMutex);
 
         }
-        pthread_mutex_unlock(&playerConnectionMutex);
     }
-
-
 }
 
 void createConnector(void) {
@@ -180,8 +220,9 @@ void createConnector(void) {
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-
-
+    playerSharedConnector->totalPlayerCount = 0;
+    playerSharedConnector->playerConnected = 0;
+    playerSharedConnector->freeIndex = 0;
 }
 
 void createCommunicator(void) {
@@ -193,13 +234,15 @@ void createCommunicator(void) {
         int sharedBlockId =
                 shmget(key, sizeof(struct communicator_t), 0644 | IPC_CREAT);
 
-        *(playerCommunicator + i) = (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
+        *(playerCommunicator + i) =
+                (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
         (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
 
         pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
 
         (*(playerCommunicator + i))->playerIndex = i;
+        (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
 
 
 //        playerSharedConnector->totalPlayerCount = 0;
@@ -210,9 +253,6 @@ void createCommunicator(void) {
 
     }
 
-//   pthread_mutex_lock(&playerCommunicator->mutex);
-
-//   pthread_mutex_unlock(&playerCommunicator->mutex);
 
 }
 
@@ -222,8 +262,10 @@ void displayMap(void) {
     win = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 1, 1);
 
     refresh();
+
     init_pair(1, COLOR_BLACK, COLOR_YELLOW);
     wbkgd(win, COLOR_PAIR(1));
+
     for (int i = 0; i < LABYRINTH_HEIGHT; i++) {
         for (int j = 0; j < LABYRINTH_WIDTH; j++) {
             field_status_t buffer = fieldStatus[i][j];
@@ -250,21 +292,27 @@ void displayMap(void) {
     refresh();
 }
 
+void createListener(void) {
+//    pthread_t playerListenerThread, inputListenerThread;
+
+}
 
 int main(void) {
+    createConnector();
     createCommunicator();
 
-
-    /*prepareServer();
+    prepareServer();
     displayMap();
+
     createAndDisplayServerStatistics();
-    createCommunicator();
-    pthread_t playerListenerThread, inputListenerThread;
+
+//    pthread_t playerListenerThread, inputListenerThread;
     pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
     pthread_create(&inputListenerThread, NULL, inputListener, NULL);
+    pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
 
     // pthread_join(playerListenerThread, NULL);
-
+/*
 //    debugging();
     pthread_join(playerListenerThread, NULL);
     shmdt(playerSharedConnector);
@@ -272,7 +320,23 @@ int main(void) {
 
     endwin();
 */
+    sleep(12);
+
+    finalize();
     return 0;
+}
+
+void finalize(void) {
+    free(players);
+//    free(playerSharedConnector->pthreadMutex);
+
+    shmdt(playerSharedConnector);
+
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
+        free(playerCommunicator[i]->connectorMutex);
+        shmdt(playerCommunicator[i]);
+    }
+    endwin();
 }
 
 void debugging(void) {
@@ -297,7 +361,6 @@ void debugging(void) {
         if (c == KEY_RIGHT)
             movePlayer(0, MOVE_RIGHT);
     } while (c != 'q');
-
 
     refresh();
     wrefresh(inputWindow);
@@ -348,7 +411,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
 
     if (fieldStatusTo == FREE_BLOCK) {
-        mvwprintw(inputWindow, debugging_counter++, 1, "Moves");
 
         if (isOnBushes) {
             fieldStatus[xFrom][yFrom] = BUSHES;
@@ -358,6 +420,9 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             fieldStatus[xFrom][yFrom] = FREE_BLOCK;
             mvwprintw(win, xFrom, yFrom, " ");
         }
+
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
 
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
 
@@ -385,6 +450,10 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         mvwprintw(win, xFrom, yFrom, " ");
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
 
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
+        playerCommunicator[index]->coinsPicked += LARGE_TREASURE_COINS;
+
     }
     if (fieldStatusTo == TREASURE) {
         players->players[index].coinsCarried += TREASURE_COINS;
@@ -404,6 +473,11 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
         mvwprintw(win, xFrom, yFrom, " ");
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
+        playerCommunicator[index]->coinsPicked += TREASURE_COINS;
+
     }
     if (fieldStatusTo == ONE_COIN) {
         players->players[index].coinsCarried += ONE_COIN_COINS;
@@ -422,6 +496,11 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
 
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
+        playerCommunicator[index]->coinsPicked += ONE_COIN_COINS;
+
     }
     if (fieldStatusTo == BUSHES) {
         players->players[index].xPosition = xTo;
@@ -455,36 +534,46 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             mvwprintw(win, xFrom, yFrom, " ");
         }
 
-        fieldStatus[xTo][yTo] = getStatusFromIndexBushed(index);
+        fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
+        playerCommunicator[index]->coinsBrought += playerCommunicator[index]->coinsPicked;
+        playerCommunicator[index]->coinsPicked = 0;
     }
     if (fieldStatusTo == DROPPED_TREASURE) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
-        players->players[index].coinsCarried += getDroppedTreasureCoins(xTo, yTo);
+        int droppedTreasureCoins = getDroppedTreasureCoins(xTo, yTo);
+        players->players[index].coinsCarried += droppedTreasureCoins;
 
         if (isOnBushes) {
             fieldStatus[xFrom][yFrom] = BUSHES;
             mvwprintw(win, xFrom, yFrom, "#");
-        }
-        else {
+        } else {
             fieldStatus[xFrom][yFrom] = FREE_BLOCK;
             mvwprintw(win, xFrom, yFrom, " ");
         }
 
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+        playerCommunicator[index]->currentlyAtX = xTo;
+        playerCommunicator[index]->currentlyAtY = yTo;
 
-
+        playerCommunicator[index]->coinsPicked += droppedTreasureCoins;
     }
     if (fieldStatusTo == PLAYER_1) {
-
+        collision(index, 0);
     }
     if (fieldStatusTo == PLAYER_2) {
-
+        collision(index, 1);
     }
     if (fieldStatusTo == PLAYER_3) {
-
+        collision(index, 2);
     }
     if (fieldStatusTo == PLAYER_4) {
+        collision(index, 3);
+    }
+    if (fieldStatusTo == WILD_BEAST) {
 
     }
 
@@ -497,14 +586,82 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 }
 
 
+//                 p1 -> p2
+void collision(int index1, int index2) {
+    int posFrom1[2];
+    posFrom1[0] = players->players[index1].xPosition;
+    posFrom1[1] = players->players[index1].yPosition;
+
+    int posFrom2[2]; // Also place of colision //
+    posFrom2[0] = players->players[index2].xPosition;
+    posFrom2[1] = players->players[index2].yPosition;
+
+    int isOnBush1 = fieldStatus[posFrom1[0]][posFrom1[1]] == getStatusFromIndexBushed(index1);
+    int isOnBush2 = fieldStatus[posFrom1[0]][posFrom1[1]] == getStatusFromIndexBushed(index2);
+
+
+    int *posTo1;
+    int *posTo2;
+    do {
+        posTo1 = getRandomFreePosition();
+        posTo2 = getRandomFreePosition();
+    } while (posTo1[0] == posTo2[0] && posTo1[1] == posTo2[1]);
+
+
+    players->players[index1].xPosition = posTo1[0];
+    players->players[index1].yPosition = posTo1[1];
+
+    players->players[index2].xPosition = posTo2[0];
+    players->players[index2].yPosition = posTo2[1];
+
+    playerCommunicator[index1]->currentlyAtX = posTo1[0];
+    playerCommunicator[index1]->currentlyAtY = posTo1[1];
+
+    playerCommunicator[index2]->currentlyAtX = posTo2[0];
+    playerCommunicator[index2]->currentlyAtY = posTo2[1];
+
+    int droppedTreasureVal =
+            players->players[index1].coinsCarried + players->players[index2].coinsCarried;
+
+    players->players[index1].coinsCarried = 0;
+    players->players[index2].coinsCarried = 0;
+
+    playerCommunicator[index1]->coinsPicked = 0;
+    playerCommunicator[index2]->coinsPicked = 0;
+
+    if (isOnBush1) {
+        fieldStatus[posFrom1[0]][posFrom1[1]] = BUSHES;
+        mvwprintw(win, posFrom1[0], posFrom1[1], "#");
+    }
+    else {
+        fieldStatus[posFrom1[0]][posFrom1[1]] = FREE_BLOCK;
+        mvwprintw(win, posFrom1[0], posFrom1[1], " ");
+    }
+
+    if (isOnBush2) {
+        fieldStatus[posFrom2[0]][posFrom2[1]] = BUSHES;
+        mvwprintw(win, posFrom2[0], posFrom2[1], "#");
+    }
+    else {
+        fieldStatus[posFrom2[0]][posFrom2[1]] = FREE_BLOCK;
+        mvwprintw(win, posFrom2[0], posFrom2[1], " ");
+    }
+
+    fieldStatus[posFrom2[0]][posFrom2[1]] = DROPPED_TREASURE;
+
+
+    wrefresh(win);
+    refresh();
+
+    free(posTo1);
+    free(posTo2);
+}
+
 void paintPlayer(int index, int x, int y) {
-    // wmove(win, x, y);
     mvwprintw(win, x, y, "%c", (char) (index + '0' + 1));
     wrefresh(win);
     refresh();
 }
-
-
 
 void readMap(void) {
     FILE *fp = fopen(MAP_FILENAME, "r");
@@ -539,15 +696,11 @@ void readMap(void) {
 }
 
 int findFreeIndex(void) {
-    int freePos = -1;
-    for (int i = 0; i < 4; i++) {
-        if (playerCommunicator[i]->playerStatus == NOT_CONNECTED) {
-            freePos = i;
-            break;
-        }
-    }
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+        if (playerCommunicator[i]->playerStatus == NOT_CONNECTED)
+            return i;
 
-    return freePos;
+    return -1;
 }
 
 int *getRandomFreePosition(void) {
@@ -590,4 +743,19 @@ int getDroppedTreasureCoins(int x, int y) {
             return droppedTreasure->coins;
 
     return TREASURE_COINS;
+}
+
+player_move_dir getMoveDirFromInput(int input) {
+    if (input == KEY_LEFT)
+        return MOVE_LEFT;
+    if (input == KEY_RIGHT)
+        return MOVE_RIGHT;
+    if (input == KEY_UP)
+        return MOVE_UP;
+    if (input == KEY_DOWN)
+        return MOVE_DOWN;
+    if (input == 'q' || input == 'Q')
+        return PLAYER_QUIT;
+
+    return 0;
 }

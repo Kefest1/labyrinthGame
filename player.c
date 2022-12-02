@@ -6,6 +6,10 @@
 #include <sys/shm.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <ncurses.h>
+#include <unistd.h>
+
+
 // TODO FAIL IF DOESN'T EXIST
 
 int playerID;
@@ -33,6 +37,8 @@ typedef enum {
 player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
 
+pthread_t keyListenerThread;
+
 int checkIfConnectorExist(void) {
     errno = 0;
 
@@ -47,7 +53,6 @@ int checkIfConnectorExist(void) {
 }
 
 
-
 int establishConnection(void) {
 //    if (checkIfConnectorExist())
 //        return -1;
@@ -59,7 +64,7 @@ int establishConnection(void) {
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    pthread_mutex_lock(&playerConnectionMutex);
+//    pthread_mutex_lock(&playerConnectionMutex);
 
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
         puts("Too many players\nTry again later.");
@@ -67,56 +72,75 @@ int establishConnection(void) {
     else {
         puts("Connected successfully");
         playerID = playerConnector->freeIndex;
-        playerConnector->totalPlayerCount++;
+
+        refresh();
     }
     playerConnector->playerConnected = 1;
 
     // Already locked! //
-     connectToCommunicator(playerID);
+    connectToCommunicator(playerID);
 
-    printf("Currently %d players\n", playerConnector->totalPlayerCount);
+    printf("Currently %d players\n", playerConnector->totalPlayerCount + 1);
 
-    pthread_mutex_unlock(&playerConnectionMutex);
+//    pthread_mutex_unlock(&playerConnectionMutex);
 
     return 0;
 }
 
 int connectToCommunicator(int playerConnectionIndex) {
     key_t key = ftok(FILE_COMMUNICATOR, playerConnectionIndex);
+
+    mvprintw(3, 3, "PlayerID: %d", playerConnectionIndex);
+    refresh();
+
     int sharedBlockId = shmget(key, sizeof(struct communicator_t),
                                IPC_CREAT);
 
     playerCommunicator =
             (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
-    pthread_mutex_lock(&playerConnectionMutex);
-
-    playerCommunicator->playerStatus = CONNECTED;
-    playerCommunicator->currentlyMoving = 0;
-
-    playerCommunicator->coinsPicked = 0;
-    playerCommunicator->coinsBrought = 0;
-    playerCommunicator->deaths = 0;
-
-
-    pthread_mutex_unlock(&playerConnectionMutex);
-
     return 0;
 }
 
-void *gameMove(void *ptr) {
-    // print "your turn"
-    char input;
-
-
+void *getInputThread(void *ptr) {
 
 }
 
+void *gameMove(void *ptr) {
+    mvprintw(4, 4, "Here");
+    refresh();
+    while (playerCommunicator->currentlyMoving == 0);
+
+    mvprintw(5, 5, "Your turn!         ");
+    refresh();
+
+    int input = getch();
+
+    if (playerCommunicator->currentlyMoving)
+        playerCommunicator->playerInput = input;
+
+    while (playerCommunicator->currentlyMoving == 1);
+
+    mvprintw(5, 5, "Wait for your turn!");
+
+    refresh();
+
+    return NULL;
+}
+
 int main(void) {
-//    int x = getchar();
-//    printf("\"%c\"\n", x);
+    initscr();
+    refresh();
+
     if (establishConnection() == -1)
         return puts("Failed to connect.\nServer is yet to start"), 1;
+
+    pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
+
+    sleep(12);
+//    pthread_join(keyListenerThread, NULL);
 //    setenv("TERMINFO","/usr/share/terminfo", 1);
+
+    endwin();
     return 0;
 }

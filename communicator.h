@@ -11,8 +11,8 @@
 #define MAX_PLAYERS MAX_PLAYER_COUNT
 
 #define RANGE_OF_VIEW 5
-#define ROUND_DURATION_SECONDS 1
-#define ROUND_DURATION_MILLI_SECONDS (1000 * ROUND_DURATION_SECONDS)
+#define ROUND_DURATION_SECONDS 5u
+#define ROUND_DURATION_MILLI_SECONDS (1000u * ROUND_DURATION_SECONDS)
 
 typedef struct {
     field_status_t aroundPlayers[RANGE_OF_VIEW][RANGE_OF_VIEW];
@@ -36,7 +36,8 @@ struct communicator_t {
     pthread_mutex_t *connectorMutex;
 //    sem_t semaphore;
 
-    char playerInput; // If not given -> same as previous
+    int playerInput;
+    // If not given -> same as previous
     // If wrong -> nothing will happen
 
     player_status playerStatus;
@@ -51,11 +52,10 @@ struct communicator_t {
 
     int playerIndex;
 
+    int locked;
+
     int currentlyAtX;
     int currentlyAtY;
-
-    int startAtX;
-    int startAtY;
 };
 
 typedef struct {

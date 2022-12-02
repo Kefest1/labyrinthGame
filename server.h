@@ -17,5 +17,7 @@ void debugging();
 void testKeys(void);
 void playDebugging(void);
 int movePlayer(int index, player_move_dir playerMoveDir);
+player_move_dir getMoveDirFromInput(int input);
+void collision(int index1, int index2);
 
 #endif //LABYRINTHGAME_SERVER_H

@@ -1,2 +1,2 @@
-gcc player.c -pthread -o player
+gcc player.c -pthread -lncurses -o player
 ./player

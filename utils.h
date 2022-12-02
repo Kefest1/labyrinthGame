@@ -32,15 +32,6 @@ typedef struct {
     _Bool playerConnected;
     int totalPlayerCount;
     int freeIndex; // Doesn't matter if max //
-
-
-    // int justConnectedIndex;
-    // int totalPlayers;
-    // player_status playerStatus[MAX_PLAYER_COUNT];
-    // int totalPlayers;
-    // FreeIndex
-    // PlayerProcessID
-    
 } player_connector_t;
 
 
@@ -99,6 +90,8 @@ typedef enum {
     MOVE_RIGHT,
     MOVE_UP,
     MOVE_DOWN,
+
+    PLAYER_QUIT
 } player_move_dir;
 
 typedef struct {
