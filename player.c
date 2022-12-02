@@ -131,7 +131,7 @@ void *gameMove(void *ptr) {
     refresh();
 
     //sleep(ROUND_DURATION_SECONDS);
-    int input = getch(); //KEY_LEFT; // getch();
+    int input = 69;  //KEY_LEFT; // getch();
 //    if (input == 'w')
 //        input = KEY_UP;
 //    if (input == 'a')
@@ -176,7 +176,7 @@ int main(void) {
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
-    sleep(12);
+    sleep(32u);
 //    pthread_join(keyListenerThread, NULL);
 //    setenv("TERMINFO","/usr/share/terminfo", 1);
 

@@ -116,10 +116,9 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 }
 
 void *playerActionListener(void *ptr) {
-
+    sleep(2u);
     e:
     while (players->totalPlayers > 0) {
-        sleep(4u);
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
@@ -131,6 +130,7 @@ void *playerActionListener(void *ptr) {
 
                 wrefresh(win);
                 refresh();
+
 
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
 
