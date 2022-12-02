@@ -116,27 +116,32 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 }
 
 void *playerActionListener(void *ptr) {
-    sleep(2u);
 
     e:
     while (players->totalPlayers > 0) {
+        sleep(4u);
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
-
-                wrefresh(win);
-                refresh();
                 playerCommunicator[i]->currentlyMoving = 1;
 
                 sleep(ROUND_DURATION_SECONDS);
-                mvprintw(17, 60, "%d", playerCommunicator[i]->playerInput);
+
+                mvprintw(17, 60, "Player input: %d", playerCommunicator[i]->playerInput);
+
+                wrefresh(win);
+                refresh();
+
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
 
                 if (moveDir == PLAYER_QUIT) {
                     // TODO playerQuit() //
                 }
                 movePlayer(i, moveDir);
-                mvprintw(17, 60, "%d", moveDir);
+                mvprintw(18, 60, "Move direction: %d", moveDir);
+
+                wrefresh(win);
+                refresh();
 
                 playerCommunicator[i]->currentlyMoving = 0;
             }
@@ -170,8 +175,8 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
             playerSharedConnector->freeIndex = findFreeIndex();
-            mvprintw(16, 60, "%d", playerSharedConnector->freeIndex);
-            refresh();
+//            mvprintw(16, 60, "%d", playerSharedConnector->freeIndex);
+//            refresh();
 
             int *arr = getRandomFreePosition();
 

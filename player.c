@@ -113,34 +113,50 @@ void *getInputThread(void *ptr) {
 }
 
 void createMessageWindow(void) {
-    messagesWindow = newwin(7, 32, 15, 60);
+    messagesWindow = newwin(16, 36, 15, 60);
     refresh();
     box(messagesWindow, 0, 0);
     wrefresh(messagesWindow);
 }
 
+int debug = 1;
+
 void *gameMove(void *ptr) {
     e:
 
-
     while (playerCommunicator->currentlyMoving == 0);
 
-    mvwprintw(messagesWindow, 1, 1, "Your turn!         ");
+    mvwprintw(messagesWindow, debug++, 1, "Give input");
     wrefresh(messagesWindow);
+    refresh();
 
     //sleep(ROUND_DURATION_SECONDS);
     int input = getch(); //KEY_LEFT; // getch();
-    mvwprintw(messagesWindow, 2, 2, "%d", input);
-    wrefresh(messagesWindow);
+//    if (input == 'w')
+//        input = KEY_UP;
+//    if (input == 'a')
+//        input = KEY_LEFT;
+//    if (input == 's')
+//        input = KEY_DOWN;
+//    if (input == 'd')
+//        input = KEY_RIGHT;
 
+    mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
+    wrefresh(messagesWindow);
     refresh();
 
     playerCommunicator->playerInput = input;
-    while (playerCommunicator->currentlyMoving == 1);
+    while (1) {
+//        printf("%d ", playerCommunicator->currentlyMoving);
 
-    mvwprintw(messagesWindow, 2, 2, "Wait for your turn!");
+        if (playerCommunicator->currentlyMoving == 0)
+            break;
+    }
+
+    printf("Dupadupa");
+
+    mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");
     wrefresh(messagesWindow);
-
     refresh();
 
     goto e;
