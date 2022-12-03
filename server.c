@@ -259,8 +259,10 @@ void createCommunicator(void) {
 
         (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
 
-        pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
+        int test = pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
+        if (test) {
 
+        }
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
 
@@ -334,7 +336,7 @@ int main(void) {
 
     endwin();
 */
-    sleep(120u);
+    sleep(DEBUG_SLEEP);
 
     finalize();
     return 0;

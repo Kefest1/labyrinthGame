@@ -7,5 +7,6 @@
 
 int connectToCommunicator(int playerConnectionIndex);
 int establishConnection(void);
+void finalize(void);
 
 #endif //LABYRINTHGAME_PLAYER_H

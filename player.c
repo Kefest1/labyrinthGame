@@ -218,19 +218,23 @@ void *gameMove(void *ptr) {
     e:
 
     while (playerCommunicator->currentlyMoving == 0);
+    pthread_mutex_lock(playerCommunicator->connectorMutex);
 
     mvwprintw(messagesWindow, debug++, 1, "Give input");
     wrefresh(messagesWindow);
     refresh();
+    pthread_mutex_unlock(playerCommunicator->connectorMutex);
 
 
     // UP DOWN LEFT RIGHT
     int isq = getch();
-    if (isq == 'Q' || isq == 'q'){
-        // TODO finalize(); //
+    if (isq == 'Q' || isq == 'q') {
+        getch();
+        getch();
+        finalize();
     }
     getch();
-    int input = getch(); // getch();//getRandomInputDebug();
+    int input = getch();
 
     input = getDirection(input);
 
@@ -240,10 +244,12 @@ void *gameMove(void *ptr) {
 
     playerCommunicator->playerInput = input;
     while (1) {
-//        printf("%d ", playerCommunicator->currentlyMoving);
+        pthread_mutex_lock(playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 0)
             break;
+
+        pthread_mutex_unlock(playerCommunicator->connectorMutex);
     }
     printMapAround();
 
@@ -272,12 +278,23 @@ int getRandomInputDebug(void) {
     return KEY_RIGHT;
 }
 
-int main(void) {
-    srand(time(NULL));
+void setGameUp(void) {
     initscr();
     refresh();
+    noecho();
+    refresh();
+}
 
-    // noecho();
+void finalize(void) {
+    werase(map);
+    werase(messagesWindow);
+    endwin();
+}
+
+int main(void) {
+    //srand(time(NULL));
+
+    setGameUp();
     createMessageWindow();
     createMapWindow();
 
@@ -287,11 +304,11 @@ int main(void) {
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
-    sleep(120u);
+    sleep(DEBUG_SLEEP);
 //    pthread_join(keyListenerThread, NULL);
 //    setenv("TERMINFO","/usr/share/terminfo", 1);
 
 
-    endwin();
+    finalize();
     return 0;
 }
