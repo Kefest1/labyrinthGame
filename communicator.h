@@ -35,7 +35,7 @@ struct player_server_communicator_t {
 };
 
 struct communicator_t {
-    pthread_mutex_t *connectorMutex;
+    pthread_mutexattr_t *connectorMutex;
 //    sem_t semaphore;
 
     int playerInput;

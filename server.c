@@ -83,7 +83,7 @@ void prepareServer(void) {
     droppedTreasureCount = 0;
     readMap();
 
-    pthread_mutex_init(&playerConnectionMutex, NULL);
+
 
     players = calloc(1, sizeof(struct players_t));
 }
@@ -180,7 +180,7 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 //                pthread_mutex_unlock(&playerConnectionMutex);
                 continue;
             }
-
+            pthread_mutex
             pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
 
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
@@ -236,8 +236,8 @@ void createConnector(void) {
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutex_t));
-    pthread_mutex_init(playerSharedConnector->pthreadMutex, NULL);
+    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutexattr_t));
+    pthread_mutexattr_init(playerSharedConnector->pthreadMutex);
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
@@ -257,12 +257,14 @@ void createCommunicator(void) {
                 (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
 
-        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
+        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutexattr_t));
 
-        int test = pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
+
+        int test = pthread_mutexattr_init((*(playerCommunicator + i))->connectorMutex);
         if (test) {
 
         }
+
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
 

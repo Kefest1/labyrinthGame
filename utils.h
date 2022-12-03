@@ -18,8 +18,8 @@
 
 #include <pthread.h>
 
-pthread_mutex_t playerConnectionMutex;
-pthread_mutex_t playerControllerMutex;
+pthread_mutexattr_t playerConnectionMutex;
+pthread_mutexattr_t playerControllerMutex;
 
 typedef enum {
     NOT_CONNECTED = 0,
@@ -28,7 +28,7 @@ typedef enum {
 
 // Shared between player processes //
 typedef struct {
-    pthread_mutex_t *pthreadMutex;
+    pthread_mutexattr_t *pthreadMutex;
 
     _Bool playerConnected;
     int totalPlayerCount;

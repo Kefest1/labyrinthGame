@@ -244,12 +244,12 @@ void *gameMove(void *ptr) {
 
     playerCommunicator->playerInput = input;
     while (1) {
-        pthread_mutex_lock(playerCommunicator->connectorMutex);
+        pthread_mutexattr_lock(playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 0)
             break;
 
-        pthread_mutex_unlock(playerCommunicator->connectorMutex);
+        pthread_mutexattr_unlock(playerCommunicator->connectorMutex);
     }
     printMapAround();
 
