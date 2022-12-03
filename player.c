@@ -34,10 +34,37 @@ int roundNumber;
 
 // </Statistics //
 
+int getCharFromStatus(field_status_t fieldStatus) {
+    if (fieldStatus == WALL)
+        return 'O';
+    if (fieldStatus == FREE_BLOCK)
+        return ' ';
+    if (fieldStatus == LARGE_TREASURE)
+        return 'T';
+    if (fieldStatus == TREASURE)
+        return 't';
+    if (fieldStatus == ONE_COIN)
+        return 'c';
+    if (fieldStatus == BUSHES)
+        return '#';
+    if (fieldStatus == CAMPSITE)
+        return 'A';
+    if (fieldStatus == DROPPED_TREASURE)
+        return 'D';
+    if (fieldStatus == WILD_BEAST)
+        return '*';
+    if (fieldStatus == PLAYER_1 || fieldStatus == PLAYER_1_ON_BUSH)
+        return '1';
+    if (fieldStatus == PLAYER_2 || fieldStatus == PLAYER_2_ON_BUSH)
+        return '2';
+    if (fieldStatus == PLAYER_3 || fieldStatus == PLAYER_3_ON_BUSH)
+        return '3';
+    if (fieldStatus == PLAYER_4 || fieldStatus == PLAYER_4_ON_BUSH)
+        return '4';
 
-void createStatistics(void) {
-
+    return '?';
 }
+
 int checkIfConnectorExist(void) {
     errno = 0;
 
@@ -88,7 +115,7 @@ int establishConnection(void) {
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
 //    pthread_mutex_lock(&playerConnectionMutex);
-
+    serverProcessId = playerConnector->serverPid;
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
         puts("Too many players\nTry again later.");
     }
@@ -103,7 +130,7 @@ int establishConnection(void) {
     // Already locked! //
     connectToCommunicator(playerID);
 
-    printf("Currently %d players\n", playerConnector->totalPlayerCount + 1);
+//    printf("Currently %d players\n", playerConnector->totalPlayerCount + 1);
 
 //    pthread_mutex_unlock(&playerConnectionMutex);
 
@@ -113,10 +140,39 @@ int establishConnection(void) {
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
 
+int mapCleanerX = -1;
+int mapCleanerY;
+
+void printMapAround(void) {
+    if (mapCleanerX != -1) {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                mvwprintw(map, mapCleanerX, mapCleanerY, " ");
+            }
+        }
+    }
+
+    mapCleanerX = playerCommunicator->currentlyAtX - 2;
+    mapCleanerY = playerCommunicator->currentlyAtY - 2;
+
+
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            mvwprintw(
+                    map, playerCommunicator->currentlyAtX - 2 + i, playerCommunicator->currentlyAtY - 2 + j,
+                    "%c", getCharFromStatus(playerCommunicator->mapAround.aroundPlayers[i][j])
+                      );
+        }
+    }
+
+    wrefresh(map);
+    refresh();
+}
+
 int connectToCommunicator(int playerConnectionIndex) {
     key_t key = ftok(FILE_COMMUNICATOR, playerConnectionIndex);
 
-    mvprintw(3, 3, "PlayerID: %d", playerConnectionIndex);
+    // mvprintw(3, 3, "PlayerID: %d", playerConnectionIndex);
     refresh();
 
     int sharedBlockId = shmget(key, sizeof(struct communicator_t),
@@ -132,6 +188,12 @@ void *getInputThread(void *ptr) {
     return NULL;
 }
 
+void createMapWindow(void) {
+    map = newwin(LABYRINTH_HEIGHT, LABYRINTH_WIDTH, 0, 0);
+    refresh();
+    wrefresh(messagesWindow);
+}
+
 void createMessageWindow(void) {
     messagesWindow = newwin(16, 36, 15, 60);
     refresh();
@@ -140,6 +202,17 @@ void createMessageWindow(void) {
 }
 
 int debug = 1;
+
+int getDirection(int input) {
+    if (input == 65)
+        return KEY_UP;
+    if (input == 66)
+        return KEY_DOWN;
+    if (input == 67)
+        return KEY_RIGHT;
+
+    return KEY_LEFT;
+}
 
 void *gameMove(void *ptr) {
     e:
@@ -150,8 +223,16 @@ void *gameMove(void *ptr) {
     wrefresh(messagesWindow);
     refresh();
 
-    //sleep(ROUND_DURATION_SECONDS);
-    int input = getRandomInputDebug();  //KEY_LEFT; // getch();
+
+    // UP DOWN LEFT RIGHT
+    int isq = getch();
+    if (isq == 'Q' || isq == 'q'){
+        // TODO finalize(); //
+    }
+    getch();
+    int input = getch(); // getch();//getRandomInputDebug();
+
+    input = getDirection(input);
 
     mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
     wrefresh(messagesWindow);
@@ -164,7 +245,7 @@ void *gameMove(void *ptr) {
         if (playerCommunicator->currentlyMoving == 0)
             break;
     }
-
+    printMapAround();
 
     mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");
     wrefresh(messagesWindow);
@@ -176,31 +257,37 @@ void *gameMove(void *ptr) {
 }
 
 int getRandomInputDebug(void) {
-    srand(time(NULL));
-    int x = rand() % 4;
+//    srand(time(NULL));
 
-    if (x == 0)
+    int dir;
+    dir = rand() % 4;
+
+    if (dir == 0)
         return KEY_UP;
-    if (x == 1)
+    if (dir == 1)
         return KEY_DOWN;
-    if (x == 2)
+    if (dir == 2)
         return KEY_LEFT;
+
     return KEY_RIGHT;
 }
 
 int main(void) {
+    srand(time(NULL));
     initscr();
     refresh();
 
     // noecho();
     createMessageWindow();
+    createMapWindow();
 
     if (establishConnection() == -1)
         return puts("Failed to connect.\nServer is yet to start"), 1;
+    createAndDisplayStatistics();
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
-    sleep(16u);
+    sleep(120u);
 //    pthread_join(keyListenerThread, NULL);
 //    setenv("TERMINFO","/usr/share/terminfo", 1);
 

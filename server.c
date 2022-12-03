@@ -256,12 +256,16 @@ void createCommunicator(void) {
         *(playerCommunicator + i) =
                 (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
+
         (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
 
         pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, NULL);
 
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
+
+        (*(playerCommunicator + i))->mapAround.campsiteX = campsiteXCoordinate;
+        (*(playerCommunicator + i))->mapAround.campsiteY = campsiteYCoordinate;
 
     }
 }
@@ -330,7 +334,7 @@ int main(void) {
 
     endwin();
 */
-    sleep(16u);
+    sleep(120u);
 
     finalize();
     return 0;
@@ -388,11 +392,16 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
 
+    updateRoundNumber();
+
     int willMove;
     int isOnBushes = fieldStatusFrom == getStatusFromIndexBushed(index);
 
     int isOnCampsite = (xFrom == campsiteXCoordinate) && (yFrom == campsiteXCoordinate);
     int goingToCampsite;
+
+    if (players->players[index].locked)
+        return players->players[index].locked = 0, 1;
 
     if (playerMoveDir == MOVE_UP) {
         xTo = xFrom - 1;
@@ -414,8 +423,9 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         yTo = yFrom + 1;
     }
 
-    if (players->players[index].locked)
-        return players->players[index].locked = 0, 1;
+
+
+
 
     goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
 
@@ -440,7 +450,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
     }
     if (fieldStatusTo == WALL) {
-
+        fillSharedMap(index);
         return 1; // Broadcast communicat
     }
     if (fieldStatusTo == LARGE_TREASURE) {
@@ -592,6 +602,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     players->players[index].yPosition = yTo;
     wrefresh(win);
     refresh();
+
+    fillSharedMap(index);
 
     return 0;
 }
@@ -769,4 +781,22 @@ player_move_dir getMoveDirFromInput(int input) {
         return PLAYER_QUIT;
 
     return 0;
+}
+
+void fillSharedMap(int index) {
+    int xPos = players->players[index].xPosition;
+    int yPos = players->players[index].yPosition;
+
+    int xCorner = xPos - 2;
+    int yCorner = yPos - 2;
+
+    if (xCorner < 0)
+        xCorner = 0;
+    if (yCorner < 0)
+        yCorner = 0;
+
+    for (int i = 0; i < RANGE_OF_VIEW; i++)
+        for (int j = 0; j < RANGE_OF_VIEW; j++)
+            playerCommunicator[index]->mapAround.aroundPlayers[i][j] = fieldStatus[xCorner + i][yCorner + j];
+
 }
