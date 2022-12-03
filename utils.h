@@ -7,6 +7,7 @@
 
 #define FILE_CONNECTOR "player.c"
 #define FILE_COMMUNICATOR "server.c"
+#include <stdlib.h>
 
 #define MAX_PLAYER_COUNT 4
 #define MAX_BEAST_COUNT 8
@@ -32,6 +33,7 @@ typedef struct {
     _Bool playerConnected;
     int totalPlayerCount;
     int freeIndex; // Doesn't matter if max //
+    __pid_t serverPid;
 } player_connector_t;
 
 
@@ -98,5 +100,10 @@ typedef struct {
     int x;
     int y;
 } campsite_t;
+
+typedef enum {
+    CPU,
+    HUMAN
+} player_type_t;
 
 #endif //LABYRINTHGAME_UTILS_H

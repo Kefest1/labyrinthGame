@@ -9,31 +9,11 @@
 #include <ncurses.h>
 #include <unistd.h>
 
+int getRandomInputDebug(void);
 
 // TODO FAIL IF DOESN'T EXIST
 
-int playerID;
-int playerProcessID;
-/*
-typedef enum {
-//    WALL,
-//    FREE_BLOCK,
-//    LARGE_TREASURE,
-//    TREASURE,
-//    ONE_COIN,
-//    BUSHES,
-//    CAMPSITE,
-//    DROPPED_TREASURE,
-    WILD_BEAST,
-    PLAYER_1,
-    PLAYER_2,
-    PLAYER_3,
-    PLAYER_4,
-    PLAYER_1_ON_BUSH,
-    PLAYER_2_ON_BUSH,
-    PLAYER_3_ON_BUSH,
-    PLAYER_4_ON_BUSH
-} field_status_t;*/
+
 player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
 
@@ -41,7 +21,23 @@ pthread_t keyListenerThread;
 
 WINDOW *messagesWindow;
 WINDOW *map;
+#define LABYRINTH_WIDTH  51
 
+// <Statistics> //
+int xCaptionStartLoc = 1;
+int yCaptionStartLoc = LABYRINTH_WIDTH + 1 + 3;
+
+__pid_t serverProcessId;
+int playerID;
+
+int roundNumber;
+
+// </Statistics //
+
+
+void createStatistics(void) {
+
+}
 int checkIfConnectorExist(void) {
     errno = 0;
 
@@ -53,6 +49,30 @@ int checkIfConnectorExist(void) {
             return 1;
 
     return 0;
+}
+
+
+void createAndDisplayStatistics(void) {
+    roundNumber = 0;
+
+    int i = 0;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Server's PID: %d", serverProcessId);
+    i++;  // mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Campsite X/Y: %d/%d", campsiteXCoordinate, campsiteYCoordinate);
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Round number: %d", roundNumber);
+    i++;
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Parameter:   Player1  Player2  Player3  Player4");
+    i++;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "PID");
+//    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Curr X/Y");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Deaths");
+    i++;
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Coins");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "\tCarried");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tbrought");
+    // TODO legend
+
+    refresh();
 }
 
 
@@ -131,15 +151,7 @@ void *gameMove(void *ptr) {
     refresh();
 
     //sleep(ROUND_DURATION_SECONDS);
-    int input = 69;  //KEY_LEFT; // getch();
-//    if (input == 'w')
-//        input = KEY_UP;
-//    if (input == 'a')
-//        input = KEY_LEFT;
-//    if (input == 's')
-//        input = KEY_DOWN;
-//    if (input == 'd')
-//        input = KEY_RIGHT;
+    int input = getRandomInputDebug();  //KEY_LEFT; // getch();
 
     mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
     wrefresh(messagesWindow);
@@ -153,7 +165,6 @@ void *gameMove(void *ptr) {
             break;
     }
 
-    printf("Dupadupa");
 
     mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");
     wrefresh(messagesWindow);
@@ -162,6 +173,19 @@ void *gameMove(void *ptr) {
     goto e;
 
     return NULL;
+}
+
+int getRandomInputDebug(void) {
+    srand(time(NULL));
+    int x = rand() % 4;
+
+    if (x == 0)
+        return KEY_UP;
+    if (x == 1)
+        return KEY_DOWN;
+    if (x == 2)
+        return KEY_LEFT;
+    return KEY_RIGHT;
 }
 
 int main(void) {
@@ -176,9 +200,10 @@ int main(void) {
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
-    sleep(32u);
+    sleep(16u);
 //    pthread_join(keyListenerThread, NULL);
 //    setenv("TERMINFO","/usr/share/terminfo", 1);
+
 
     endwin();
     return 0;

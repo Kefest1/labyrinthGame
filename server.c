@@ -15,7 +15,10 @@
 #define WALL_CHAR_REPLACED 'O'
 #define BUSH_CHAR '#'
 
-int debugging_counter = 2;
+#define MINIMAL_PLAYERS_TO_PLAY 1
+
+int debugging_counter = 0;
+
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
@@ -26,7 +29,7 @@ struct communicator_t *playerCommunicator[MAX_PLAYER_COUNT];
 player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
 
-void finalize();
+
 
 WINDOW *win;
 WINDOW *inputWindow;
@@ -43,9 +46,13 @@ __pid_t serverProcessId;
 int campsiteXCoordinate;
 int campsiteYCoordinate;
 
-int roundNumber;
+int roundNumber = 0;
 
 // </Statistics here:> //
+
+void updateRoundNumber(void) {
+    mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", ++roundNumber);
+}
 
 void createAndDisplayServerStatistics(void) {
     serverProcessId = getpid();
@@ -116,9 +123,14 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 }
 
 void *playerActionListener(void *ptr) {
-    sleep(2u);
+
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+        playerCommunicator[i]->currentlyMoving = 0;
+
+    sleep(4u);
     e:
-    while (players->totalPlayers > 0) {
+
+    while (players->totalPlayers >= MINIMAL_PLAYERS_TO_PLAY) {
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
@@ -126,19 +138,18 @@ void *playerActionListener(void *ptr) {
 
                 sleep(ROUND_DURATION_SECONDS);
 
-                mvprintw(17, 60, "Player input: %d", playerCommunicator[i]->playerInput);
+                mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i, playerCommunicator[i]->playerInput);
 
                 wrefresh(win);
                 refresh();
 
-
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
-
+                updateRoundNumber();
                 if (moveDir == PLAYER_QUIT) {
                     // TODO playerQuit() //
                 }
                 movePlayer(i, moveDir);
-                mvprintw(18, 60, "Move direction: %d", moveDir);
+                mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i, moveDir);
 
                 wrefresh(win);
                 refresh();
@@ -225,9 +236,12 @@ void createConnector(void) {
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
+    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutex_t));
+    pthread_mutex_init(playerSharedConnector->pthreadMutex, NULL);
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
+    playerSharedConnector->serverPid = getpid();
 }
 
 void createCommunicator(void) {
@@ -250,8 +264,6 @@ void createCommunicator(void) {
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
 
     }
-
-
 }
 
 void displayMap(void) {
@@ -318,7 +330,7 @@ int main(void) {
 
     endwin();
 */
-    sleep(16);
+    sleep(16u);
 
     finalize();
     return 0;
@@ -334,6 +346,7 @@ void finalize(void) {
         free(playerCommunicator[i]->connectorMutex);
         shmdt(playerCommunicator[i]);
     }
+
     endwin();
 }
 
