@@ -172,16 +172,15 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerSharedConnector->playerConnected = 0;
 
             int indexAt = findFreeIndex();
-//            printf("Conntected at %d index\n", indexAt);
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
 
-//                pthread_mutex_unlock(&playerConnectionMutex);
+
                 continue;
             }
-            pthread_mutex
-            pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
+
+//            pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
 
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
@@ -219,10 +218,6 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
             free(arr);
-            // printf("Player %d has connected\n", index);
-            // printf("Total players = %d\n", players->totalPlayers);
-
-//            pthread_mutex_unlock(playerCommunicator[indexAt]->connectorMutex);
 
         }
     }
@@ -236,8 +231,15 @@ void createConnector(void) {
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutexattr_t));
-    pthread_mutexattr_init(playerSharedConnector->pthreadMutex);
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
+
+    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutex_t));
+    pthread_mutex_init(playerSharedConnector->pthreadMutex, &mutexattr);
+
+    pthread_mutexattr_destroy(&mutexattr);
+
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
@@ -257,13 +259,14 @@ void createCommunicator(void) {
                 (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
 
-        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutexattr_t));
+        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
 
+        pthread_mutexattr_t mutexattr;
+        pthread_mutexattr_init(&mutexattr);
+        pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-        int test = pthread_mutexattr_init((*(playerCommunicator + i))->connectorMutex);
-        if (test) {
-
-        }
+        int test = pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, &mutexattr);
+        pthread_mutexattr_destroy(&mutexattr);
 
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
@@ -346,7 +349,6 @@ int main(void) {
 
 void finalize(void) {
     free(players);
-//    free(playerSharedConnector->pthreadMutex);
 
     shmdt(playerSharedConnector);
 

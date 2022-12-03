@@ -9,6 +9,8 @@
 #include <ncurses.h>
 #include <unistd.h>
 
+#define QUIT_EXIT_CODE 1
+
 int getRandomInputDebug(void);
 
 // TODO FAIL IF DOESN'T EXIST
@@ -104,8 +106,6 @@ void createAndDisplayStatistics(void) {
 
 
 int establishConnection(void) {
-//    if (checkIfConnectorExist())
-//        return -1;
 
     key_t key = ftok(FILE_CONNECTOR, 0);
     int sharedBlockId = shmget(key, sizeof(player_connector_t),
@@ -114,13 +114,15 @@ int establishConnection(void) {
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-//    pthread_mutex_lock(&playerConnectionMutex);
+    pthread_mutex_lock(playerConnector->pthreadMutex);
+
+    pthread_mutex_unlock(playerConnector->pthreadMutex);
+
     serverProcessId = playerConnector->serverPid;
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
         puts("Too many players\nTry again later.");
     }
     else {
-//        puts("Connected successfully");
         playerID = playerConnector->freeIndex;
 
         refresh();
@@ -129,10 +131,6 @@ int establishConnection(void) {
 
     // Already locked! //
     connectToCommunicator(playerID);
-
-//    printf("Currently %d players\n", playerConnector->totalPlayerCount + 1);
-
-//    pthread_mutex_unlock(&playerConnectionMutex);
 
     return 0;
 }
@@ -218,20 +216,19 @@ void *gameMove(void *ptr) {
     e:
 
     while (playerCommunicator->currentlyMoving == 0);
-    pthread_mutex_lock(playerCommunicator->connectorMutex);
+//    pthread_mutex_lock(playerCommunicator->connectorMutex);
 
     mvwprintw(messagesWindow, debug++, 1, "Give input");
     wrefresh(messagesWindow);
     refresh();
-    pthread_mutex_unlock(playerCommunicator->connectorMutex);
+//    pthread_mutex_unlock(playerCommunicator->connectorMutex);
 
 
     // UP DOWN LEFT RIGHT
     int isq = getch();
     if (isq == 'Q' || isq == 'q') {
-        getch();
-        getch();
         finalize();
+        return NULL;
     }
     getch();
     int input = getch();
@@ -244,12 +241,12 @@ void *gameMove(void *ptr) {
 
     playerCommunicator->playerInput = input;
     while (1) {
-        pthread_mutexattr_lock(playerCommunicator->connectorMutex);
+//        pthread_mutex_lock(playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 0)
             break;
 
-        pthread_mutexattr_unlock(playerCommunicator->connectorMutex);
+//        pthread_mutex_unlock(playerCommunicator->connectorMutex);
     }
     printMapAround();
 

@@ -2,22 +2,17 @@
 // Created by root on 11/7/22.
 //
 
-#include "utils.h"
 #include <stdio.h>
+#include <pthread.h>
 #include <ncurses.h>
 
-int main(void) {
-    initscr();
-    refresh();
-    int x = -2137;
-    x = getch();
-    printf("%d ", x);
-    x = getch();
-    printf("%d ", x);
-    x = getch();
-    printf("%d ", x);
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-    endwin();
+int main(void) {
+    sysconf(_SC_THREAD_PROCESS_SHARED);
     return 0;
 }
 
