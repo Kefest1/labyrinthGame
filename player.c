@@ -20,6 +20,7 @@ player_connector_t *playerConnector;
 struct communicator_t *playerCommunicator;
 
 pthread_t keyListenerThread;
+pthread_t roundUpdaterThread;
 
 WINDOW *messagesWindow;
 WINDOW *map;
@@ -38,7 +39,7 @@ int yCaptionStartLoc = LABYRINTH_WIDTH + 1 + 3;
 __pid_t serverProcessId;
 int playerID;
 
-int roundNumber;
+int roundNumber = 0;
 
 // </Statistics //
 
@@ -86,6 +87,26 @@ int checkIfConnectorExist(void) {
     return 0;
 }
 
+void roundRefresh(void) {
+
+}
+
+void *updateRound(void *ptr) {
+    e:
+
+    pthread_mutex_lock(&playerConnector->pthreadMutex);
+
+    if (playerConnector->rounds != roundNumber) {
+        mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", playerConnector->rounds);
+        roundNumber = playerConnector->rounds;
+    }
+
+    refresh();
+
+    pthread_mutex_unlock(&playerConnector->pthreadMutex);
+
+    goto e;
+}
 
 void createAndDisplayStatistics(void) {
     roundNumber = 0;
@@ -95,7 +116,7 @@ void createAndDisplayStatistics(void) {
     i++;  // mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Campsite X/Y: %d/%d", campsiteXCoordinate, campsiteYCoordinate);
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Round number: %d", roundNumber);
     i++;
-    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Parameter:   Player1  Player2  Player3  Player4");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Player");
     i++;
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "PID");
 //    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
@@ -110,7 +131,6 @@ void createAndDisplayStatistics(void) {
     refresh();
 }
 
-
 int establishConnection(void) {
 
     key_t key = ftok(FILE_CONNECTOR, 0);
@@ -120,9 +140,9 @@ int establishConnection(void) {
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-//    pthread_mutex_lock(&playerConnector->pthreadMutex);
+    pthread_mutex_lock(&playerConnector->pthreadMutex);
 
-
+    pthread_create(&roundUpdaterThread, NULL, &updateRound, NULL);
     serverProcessId = playerConnector->serverPid;
 
 
@@ -139,12 +159,10 @@ int establishConnection(void) {
     // Already locked! //
     connectToCommunicator(playerID);
 
-//    pthread_mutex_unlock(&playerConnector->pthreadMutex);
+    pthread_mutex_unlock(&playerConnector->pthreadMutex);
 
     return 0;
 }
-
-
 
 void printMapAround(void) {
     if (mapCleanerX != -1) {
@@ -158,6 +176,7 @@ void printMapAround(void) {
     mapCleanerX = playerCommunicator->currentlyAtX - 2;
     mapCleanerY = playerCommunicator->currentlyAtY - 2;
 
+    pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
@@ -167,6 +186,8 @@ void printMapAround(void) {
                       );
         }
     }
+
+    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
 
     wrefresh(map);
     refresh();
@@ -225,18 +246,19 @@ void *gameMove(void *ptr) {
     e:
 
     while (1) {
-//        pthread_mutex_lock(&playerCommunicator->connectorMutex);
+        pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 1) {
-//            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
             break;
         }
-//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
 
-//    pthread_mutex_lock(&playerCommunicator->connectorMutex);
+    pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
     mvwprintw(messagesWindow, debug++, 1, "Give input");
+
     wrefresh(messagesWindow);
     refresh();
 
@@ -244,7 +266,7 @@ void *gameMove(void *ptr) {
     int isq = getch();
     if (isq == 'Q' || isq == 'q') {
         playerCommunicator->hasJustDisconnected = 1;
-//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
         finalize();
         return NULL;
     }
@@ -254,22 +276,24 @@ void *gameMove(void *ptr) {
 
     input = getDirection(input);
 
-//    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+
     mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
     wrefresh(messagesWindow);
     refresh();
 
     playerCommunicator->playerInput = input;
     while (1) {
-//        pthread_mutex_lock(&playerCommunicator->connectorMutex);
+        pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 0) {
-//            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
             break;
         }
 
-//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
+
     printMapAround();
 
     mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");

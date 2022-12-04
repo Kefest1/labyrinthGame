@@ -12,6 +12,9 @@
 
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
+
+#define MAX_DROPPED_TREASURE_COUNT 50
+
 #define MAP_FILENAME "map.txt"
 #define WALL_CHAR '█'
 #define WALL_CHAR_REPLACED 'O'
@@ -24,7 +27,8 @@ int debugging_counter = 0;
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
-dropped_treasure_t droppedTreasure[50];
+dropped_treasure_t droppedTreasure[MAX_DROPPED_TREASURE_COUNT];
+dropped_treasure_status_t droppedTreasureStatus[MAX_DROPPED_TREASURE_COUNT];
 int droppedTreasureCount;
 
 struct communicator_t *playerCommunicator[MAX_PLAYER_COUNT];
@@ -66,7 +70,7 @@ void clearPlayerPosition(int index) {
     refresh();
 }
 
-void setPlayerProcessID(int index, __pid_t playerID) {
+void updatePlayerProcessID(int index, __pid_t playerID) {
     mvprintw(6, 68 + index * 9, "%d", playerID);
     refresh();
 }
@@ -96,9 +100,7 @@ void updatePlayerCarriedCoins(int index) {
 
 void clearPlayerCarriedCoins(int index) {
     mvprintw(11, 68 + index * 9, "    ");
-
     refresh();
-
 }
 
 void updatePlayerBroughtCoins(int index) {
@@ -106,13 +108,11 @@ void updatePlayerBroughtCoins(int index) {
     mvprintw(12, 68 + index * 9, "%d", coinsBrought);
 
     refresh();
-
 }
 
 void clearPlayerBroughtCoins(int index) {
     mvprintw(12, 68 + index * 9, "    ");
     refresh();
-
 }
 
 void createAndDisplayServerStatistics(void) {
@@ -133,7 +133,7 @@ void createAndDisplayServerStatistics(void) {
     i++;
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Coins");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "\tCarried");
-    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tbrought");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tBrought");
     // TODO legend
 
     refresh();
@@ -142,6 +142,10 @@ void createAndDisplayServerStatistics(void) {
 void prepareServer(void) {
     noecho();
     droppedTreasureCount = 0;
+
+    for (int i = 0; i < MAX_DROPPED_TREASURE_COUNT; i++)
+        droppedTreasureStatus[i] = NOT_EXISTS;
+
     readMap();
     players = calloc(1, sizeof(struct players_t));
 }
@@ -185,7 +189,7 @@ void erasePlayer(int index) {
     x = players->players[index].xPosition;
     y = players->players[index].yPosition;
     // printf("%d %d", x, y);
-    mvwprintw(win, x, y, "%c", 32);
+    mvwprintw(win, x, y, " ");
     wrefresh(win);
     refresh();
 }
@@ -240,8 +244,6 @@ void *playerActionListener(void *ptr) {
 
 //                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
-                updateRoundNumber();
-
                 movePlayer(i, moveDir);
                 mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
                 debugging_counter++;
@@ -267,10 +269,9 @@ void *playerActionListener(void *ptr) {
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
-//        pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
+        pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
         if (playerSharedConnector->playerConnected == 1) {
-
             playerSharedConnector->playerConnected = 0;
 
             int indexAt = findFreeIndex();
@@ -309,7 +310,7 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerCommunicator[indexAt]->locked = 0;
             playerCommunicator[indexAt]->hasJustDisconnected = 0;
 
-            setPlayerProcessID(indexAt, playerCommunicator[indexAt]->playerProcessID);
+            updatePlayerProcessID(indexAt, playerCommunicator[indexAt]->playerProcessID);
             updatePlayerPosition(indexAt);
 
             paintPlayer(indexAt, arr[0], arr[1]);
@@ -326,6 +327,8 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             free(arr);
         }
+
+        pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
     }
 }
 
@@ -341,13 +344,14 @@ void createConnector(void) {
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-    pthread_mutex_init(&playerSharedConnector->pthreadMutex, NULL);
+    pthread_mutex_init(&playerSharedConnector->pthreadMutex, &mutexattr);
 
     pthread_mutexattr_destroy(&mutexattr);
 
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
+    playerSharedConnector->rounds = 0;
     playerSharedConnector->serverPid = getpid();
 
 }
@@ -489,9 +493,6 @@ void debugging(void) {
 
 }
 
-void playDebugging(void) {
-
-}
 
 int movePlayer(int index, player_move_dir playerMoveDir) {
     int xFrom = players->players[index].xPosition, xTo;
@@ -499,6 +500,12 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
 
     updateRoundNumber();
+
+    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
+
+    playerSharedConnector->rounds++;
+
+    pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
     int willMove;
     int isOnBushes = fieldStatusFrom == getStatusFromIndexBushed(index);
@@ -529,35 +536,58 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         yTo = yFrom + 1;
     }
 
-
     goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
-
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
 
     if (fieldStatusTo == FREE_BLOCK) {
+        mvwprintw(win, 0, 0, "Dupa");
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
 
         if (isOnBushes) {
             fieldStatus[xFrom][yFrom] = BUSHES;
             mvwprintw(win, xFrom, yFrom, "#");
+            wrefresh(win);
+            refresh();
         }
         else {
             fieldStatus[xFrom][yFrom] = FREE_BLOCK;
             mvwprintw(win, xFrom, yFrom, " ");
+            wrefresh(win);
+            refresh();
         }
 
         playerCommunicator[index]->currentlyAtX = xTo;
         playerCommunicator[index]->currentlyAtY = yTo;
 
+        players->players[index].xPosition = xTo;
+        players->players[index].yPosition = yTo;
+
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
 
-        mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+        mvwprintw(win, xTo, yTo, "%c", '1' + index);
+
         updatePlayerPosition(index);
+        fillSharedMap(index);
+
+        return 0;
     }
     if (fieldStatusTo == WALL) {
         fillSharedMap(index);
         return 1; // Broadcast communicat
     }
     if (fieldStatusTo == LARGE_TREASURE) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         players->players[index].coinsCarried += LARGE_TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
@@ -580,8 +610,16 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->coinsPicked += LARGE_TREASURE_COINS;
         updatePlayerCarriedCoins(index);
 
+        return 0;
     }
     if (fieldStatusTo == TREASURE) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         players->players[index].coinsCarried += TREASURE_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
@@ -605,8 +643,16 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->coinsPicked += TREASURE_COINS;
         updatePlayerCarriedCoins(index);
 
+        return 0;
     }
     if (fieldStatusTo == ONE_COIN) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         players->players[index].coinsCarried += ONE_COIN_COINS;
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
@@ -629,8 +675,16 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->coinsPicked += ONE_COIN_COINS;
         updatePlayerCarriedCoins(index);
 
+        return 0;
     }
     if (fieldStatusTo == BUSHES) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         players->players[index].locked = 1;
@@ -645,13 +699,18 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             mvwprintw(win, xFrom, yFrom, " ");
         }
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+
+        return 0;
     }
     if (fieldStatusTo == CAMPSITE) {
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
         players->players[index].coinsBrought += players->players[index].coinsCarried;
-        // TODO refresh statistics
+
         players->players[index].coinsCarried = 0;
+
+        updatePlayerBroughtCoins(index);
+        updatePlayerCarriedCoins(index);
 
         if (isOnBushes) {
             fieldStatus[xFrom][yFrom] = BUSHES;
@@ -668,11 +727,23 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsBrought += playerCommunicator[index]->coinsPicked;
         playerCommunicator[index]->coinsPicked = 0;
+
+        return 0;
     }
     if (fieldStatusTo == DROPPED_TREASURE) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         players->players[index].xPosition = xTo;
         players->players[index].yPosition = yTo;
+
+        // Makes treasure NOT_EXIST
         int droppedTreasureCoins = getDroppedTreasureCoins(xTo, yTo);
+
         players->players[index].coinsCarried += droppedTreasureCoins;
 
         if (isOnBushes) {
@@ -688,8 +759,16 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
 
         playerCommunicator[index]->coinsPicked += droppedTreasureCoins;
+
+        return 0;
     }
     if (fieldStatusTo == PLAYER_1) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
         collision(index, 0);
 
         wrefresh(win);
@@ -700,6 +779,13 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         return 0;
     }
     if (fieldStatusTo == PLAYER_2) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
+
         collision(index, 1);
 
         wrefresh(win);
@@ -710,6 +796,12 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         return 0;
     }
     if (fieldStatusTo == PLAYER_3) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
         collision(index, 2);
 
         wrefresh(win);
@@ -720,6 +812,12 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         return 0;
     }
     if (fieldStatusTo == PLAYER_4) {
+        if (isOnCampsite) {
+            fieldStatus[xFrom][yFrom] = CAMPSITE;
+            mvwprintw(win, xFrom, yFrom, "A");
+            wrefresh(win);
+            refresh();
+        }
         collision(index, 3);
 
         wrefresh(win);
@@ -748,77 +846,99 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
 //                 p1 -> p2
 void collision(int index1, int index2) {
-    int posFrom1[2];
-    posFrom1[0] = players->players[index1].xPosition;
-    posFrom1[1] = players->players[index1].yPosition;
+    mvwprintw(win, 1, 1, "Collision has occured");
+    int xFrom1, yFrom1, xTo1, yTo1, xFrom2, yFrom2, xTo2, yTo2;
 
-    int posFrom2[2]; // Also place of colision //
-    posFrom2[0] = players->players[index2].xPosition;
-    posFrom2[1] = players->players[index2].yPosition;
+    xFrom1 = players->players[index1].xPosition;
+    yFrom1 = players->players[index1].yPosition;
+    xFrom2 = players->players[index2].xPosition;
+    yFrom2 = players->players[index2].yPosition;
 
-    int isOnBush1 = fieldStatus[posFrom1[0]][posFrom1[1]] == getStatusFromIndexBushed(index1);
-    int isOnBush2 = fieldStatus[posFrom1[0]][posFrom1[1]] == getStatusFromIndexBushed(index2);
+    xTo1 = players->players[index1].xStartPosition;
+    yTo1 = players->players[index1].yStartPosition;
+    xTo2 = players->players[index2].xStartPosition;
+    yTo2 = players->players[index2].yStartPosition;
 
+    _Bool isOnBush1 = fieldStatus[xFrom1][yFrom1] == getStatusFromIndexBushed(index1);
+    _Bool isOnBush2 = fieldStatus[xFrom2][yFrom2] == getStatusFromIndexBushed(index2);
 
-    int *posTo1;
-    int *posTo2;
-    do {
-        posTo1 = getRandomFreePosition();
-        posTo2 = getRandomFreePosition();
-    } while (posTo1[0] == posTo2[0] && posTo1[1] == posTo2[1]);
+    _Bool isOnCamp = (xFrom2 == campsiteXCoordinate) && (yFrom2 == campsiteYCoordinate);
 
+    while (fieldStatus[xTo1][yTo1] != FREE_BLOCK) {
+        int *arr = getRandomFreePosition();
+        xTo1 = arr[0];
+        yTo1 = arr[1];
+        free(arr);
+    }
 
-    players->players[index1].xPosition = posTo1[0];
-    players->players[index1].yPosition = posTo1[1];
+    while (fieldStatus[xTo2][yTo2] != FREE_BLOCK) {
+        int *arr = getRandomFreePosition();
+        xTo2 = arr[0];
+        yTo2 = arr[1];
+        free(arr);
+    }
 
-    players->players[index2].xPosition = posTo2[0];
-    players->players[index2].yPosition = posTo2[1];
+    players->players[index1].xPosition = xTo1;
+    players->players[index1].yPosition = yTo1;
 
-    playerCommunicator[index1]->currentlyAtX = posTo1[0];
-    playerCommunicator[index1]->currentlyAtY = posTo1[1];
+    players->players[index2].xPosition = xTo2;
+    players->players[index2].yPosition = yTo2;
 
-    playerCommunicator[index2]->currentlyAtX = posTo2[0];
-    playerCommunicator[index2]->currentlyAtY = posTo2[1];
+    playerCommunicator[index1]->currentlyAtX = xTo1;
+    playerCommunicator[index1]->currentlyAtY = yTo1;
+
+    playerCommunicator[index2]->currentlyAtX = xTo2;
+    playerCommunicator[index2]->currentlyAtY = yTo2;
 
     int droppedTreasureVal =
             players->players[index1].coinsCarried + players->players[index2].coinsCarried;
 
+    int freeTreasure = getFreeTreasurePos();
+
+    droppedTreasure[freeTreasure].x = xTo2;
+    droppedTreasure[freeTreasure].y = yTo2;
+    droppedTreasure[freeTreasure].coins = droppedTreasureVal;
+
     players->players[index1].coinsCarried = 0;
     players->players[index2].coinsCarried = 0;
 
-    playerCommunicator[index1]->coinsPicked = 0;
-    playerCommunicator[index2]->coinsPicked = 0;
+    updatePlayerCarriedCoins(index1);
+    updatePlayerCarriedCoins(index2);
 
     if (isOnBush1) {
-        fieldStatus[posFrom1[0]][posFrom1[1]] = BUSHES;
-        mvwprintw(win, posFrom1[0], posFrom1[1], "#");
+        fieldStatus[xFrom1][yFrom1] = BUSHES;
+        mvwprintw(win, xFrom1, yFrom1, "#");
+        wrefresh(win);
+        refresh();
     }
-    else {
-        fieldStatus[posFrom1[0]][posFrom1[1]] = FREE_BLOCK;
-        mvwprintw(win, posFrom1[0], posFrom1[1], " ");
-    }
-
     if (isOnBush2) {
-        fieldStatus[posFrom2[0]][posFrom2[1]] = BUSHES;
-        mvwprintw(win, posFrom2[0], posFrom2[1], "#");
+        fieldStatus[xFrom2][yFrom2] = BUSHES;
+        mvwprintw(win, xFrom2, yFrom2, "#");
+        wrefresh(win);
+        refresh();
     }
-    else {
-        fieldStatus[posFrom2[0]][posFrom2[1]] = FREE_BLOCK;
-        mvwprintw(win, posFrom2[0], posFrom2[1], " ");
+    if (isOnCamp) {
+        fieldStatus[xFrom2][yFrom2] = CAMPSITE;
+        mvwprintw(win, xFrom2, yFrom2, "A");
+        wrefresh(win);
+        refresh();
     }
 
-    fieldStatus[posFrom2[0]][posFrom2[1]] = DROPPED_TREASURE;
+    fieldStatus[xFrom2][yFrom2] = DROPPED_TREASURE;
 
+    fieldStatus[xTo1][yTo1] = getStatusFromIndex(index1);
+    mvwprintw(win, xTo1, yTo1, "%c", index1 + '1');
+
+    fieldStatus[xTo2][yTo2] = getStatusFromIndex(index2);
+    mvwprintw(win, xTo2, yTo2, "%c", index2 + '1');
 
     wrefresh(win);
     refresh();
 
-    free(posTo1);
-    free(posTo2);
 }
 
 void paintPlayer(int index, int x, int y) {
-    mvwprintw(win, x, y, "%c", (char) (index + '0' + 1));
+    mvwprintw(win, x, y, "%c", (char) (index + '1'));
     wrefresh(win);
     refresh();
 }
@@ -873,7 +993,7 @@ int *getRandomFreePosition(void) {
         y = rand() % LABYRINTH_WIDTH;
     } while (fieldStatus[x][y] != FREE_BLOCK);
 
-    int *buffArr = malloc(2 * sizeof(int));
+    int *buffArr = malloc(2u * sizeof(int));
     *buffArr = x;
     *(buffArr + 1) = y;
 
@@ -899,8 +1019,8 @@ field_status_t getStatusFromIndexBushed(int index) {
 
 int getDroppedTreasureCoins(int x, int y) {
     for (int i = 0; i < droppedTreasureCount; i++)
-        if (droppedTreasure[i].x == x && droppedTreasure[i].y == y)
-            return droppedTreasure->coins;
+        if (droppedTreasureStatus[i] == EXIST && droppedTreasure[i].x == x && droppedTreasure[i].y == y)
+            return droppedTreasureStatus[i] = NOT_EXISTS, droppedTreasure->coins;
 
     return TREASURE_COINS;
 }
@@ -934,4 +1054,12 @@ void fillSharedMap(int index) {
         for (int j = 0; j < RANGE_OF_VIEW; j++)
             playerCommunicator[index]->mapAround.aroundPlayers[i][j] = fieldStatus[xCorner + i][yCorner + j];
 
+}
+
+int getFreeTreasurePos(void) {
+    for (int i = 0; i < MAX_DROPPED_TREASURE_COUNT; i++)
+        if (droppedTreasureStatus[i] == NOT_EXISTS)
+            return i;
+
+    return -1;
 }

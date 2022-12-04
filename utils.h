@@ -26,6 +26,11 @@ typedef enum {
     CONNECTED
 } player_status;
 
+typedef enum {
+    NOT_EXISTS = 0,
+    EXIST
+} dropped_treasure_status_t;
+
 // Shared between player processes //
 typedef struct {
     pthread_mutex_t pthreadMutex;
@@ -34,6 +39,8 @@ typedef struct {
     int totalPlayerCount;
     int freeIndex; // Doesn't matter if max //
     __pid_t serverPid;
+
+    int rounds;
 } player_connector_t;
 
 
