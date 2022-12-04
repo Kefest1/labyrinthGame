@@ -61,12 +61,6 @@ typedef struct {
     int locked;
 } player_t;
 
-typedef struct {
-    int xPosition;
-    int yPosition;
-    int isOnBushes;
-} wild_beast_t;
-
 typedef enum {
     WALL,
     FREE_BLOCK,
@@ -87,6 +81,13 @@ typedef enum {
     PLAYER_4_ON_BUSH
 } field_status_t;
 // field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
+
+typedef struct {
+    int xPosition;
+    int yPosition;
+
+    field_status_t currentlyOn;
+} wild_beast_t;
 
 struct players_t {
     wild_beast_t wildBeast[MAX_BEAST_COUNT];

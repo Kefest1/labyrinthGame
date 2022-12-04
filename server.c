@@ -200,7 +200,7 @@ void *playerActionListener(void *ptr) {
         playerCommunicator[i]->currentlyMoving = 0;
 
     sleep(4u);
-    e:
+    inf_loop:
 
     while (players->totalPlayers >= MINIMAL_PLAYERS_TO_PLAY) {
 
@@ -261,7 +261,7 @@ void *playerActionListener(void *ptr) {
         }
     }
 
-    goto e;
+    goto inf_loop;
 
     return NULL;
 }

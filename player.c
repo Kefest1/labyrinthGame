@@ -43,6 +43,39 @@ int roundNumber = 0;
 
 // </Statistics //
 
+void displayPlayerNumber(void) {
+    mvprintw(xCaptionStartLoc + 5, yCaptionStartLoc + 7, "%d", playerID);
+    refresh();
+}
+
+void updatePlayerCur(void) {
+    mvprintw(xCaptionStartLoc + 6, yCaptionStartLoc + 9, "%d/%d",
+             playerCommunicator->currentlyAtX, playerCommunicator->currentlyAtY);
+    refresh();
+}
+
+void updatePlayerDeaths(void) {
+    mvprintw(xCaptionStartLoc + 7, yCaptionStartLoc + 7, "%d", playerCommunicator->deaths);
+    refresh();
+}
+
+void updatePlayerCarriedCoins(void) {
+    mvprintw(xCaptionStartLoc + 10, yCaptionStartLoc + 10, "%d", playerCommunicator->coinsPicked);
+    refresh();
+}
+
+void updatePlayerBroughtCoins(void) {
+    mvprintw(xCaptionStartLoc + 10, yCaptionStartLoc + 10, "%d", playerCommunicator->coinsBrought);
+    refresh();
+}
+
+void updateStatistics(void) {
+    updatePlayerDeaths();
+    updatePlayerCur();
+    updatePlayerBroughtCoins();
+    updatePlayerCarriedCoins();
+}
+
 int getCharFromStatus(field_status_t fieldStatus) {
     if (fieldStatus == WALL)
         return 'O';
@@ -87,25 +120,23 @@ int checkIfConnectorExist(void) {
     return 0;
 }
 
-void roundRefresh(void) {
-
-}
-
 void *updateRound(void *ptr) {
-    e:
+    inf_loop:
 
     pthread_mutex_lock(&playerConnector->pthreadMutex);
 
     if (playerConnector->rounds != roundNumber) {
         mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", playerConnector->rounds);
         roundNumber = playerConnector->rounds;
+        if (roundNumber)
+            updateStatistics();
     }
 
     refresh();
 
     pthread_mutex_unlock(&playerConnector->pthreadMutex);
 
-    goto e;
+    goto inf_loop;
 }
 
 void createAndDisplayStatistics(void) {
@@ -116,9 +147,9 @@ void createAndDisplayStatistics(void) {
     i++;  // mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Campsite X/Y: %d/%d", campsiteXCoordinate, campsiteYCoordinate);
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "Round number: %d", roundNumber);
     i++;
-    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Player");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "Player:");
     i++;
-    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "PID");
+    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Number");
 //    mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Type");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Curr X/Y");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Deaths");
@@ -243,8 +274,9 @@ int getDirection(int input) {
 }
 
 void *gameMove(void *ptr) {
-    e:
+    inf_loop:
 
+    printMapAround();
     while (1) {
         pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
@@ -294,13 +326,11 @@ void *gameMove(void *ptr) {
         pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
 
-    printMapAround();
-
     mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");
     wrefresh(messagesWindow);
     refresh();
 
-    goto e;
+    goto inf_loop;
 
     return NULL;
 }
