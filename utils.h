@@ -91,9 +91,7 @@ typedef enum {
     MOVE_LEFT,
     MOVE_RIGHT,
     MOVE_UP,
-    MOVE_DOWN,
-
-    PLAYER_QUIT
+    MOVE_DOWN
 } player_move_dir;
 
 typedef struct {

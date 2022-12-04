@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 int main(void) {
-    sysconf(_SC_THREAD_PROCESS_SHARED);
+    shmdt()
     return 0;
 }
 

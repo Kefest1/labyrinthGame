@@ -11,10 +11,11 @@
 #define MAX_PLAYERS MAX_PLAYER_COUNT
 
 #define RANGE_OF_VIEW 5
-#define ROUND_DURATION_SECONDS 3u
+#define ROUND_DURATION_SECONDS 2u
 #define ROUND_DURATION_MILLI_SECONDS (1000u * ROUND_DURATION_SECONDS)
 
-#define DEBUG_SLEEP 60u
+#define BETWEEN_ROUNDS_SLEEP 1u
+#define DEBUG_SLEEP 120u
 
 typedef struct {
     field_status_t aroundPlayers[RANGE_OF_VIEW][RANGE_OF_VIEW];
@@ -24,19 +25,9 @@ typedef struct {
 
 
 // Shared between one player and server //
-struct player_server_communicator_t {
-    player_move_dir playerMoveDir;
-
-    int playerIndex;
-    int playerProcessID;
-
-    int coinsBrought;
-    int coinsCarried;
-};
 
 struct communicator_t {
     pthread_mutex_t connectorMutex;
-//    sem_t semaphore;
 
     int playerInput;
     // If not given -> same as previous
@@ -58,6 +49,8 @@ struct communicator_t {
 
     int currentlyAtX;
     int currentlyAtY;
+
+    _Bool hasJustDisconnected;
 };
 
 typedef struct {

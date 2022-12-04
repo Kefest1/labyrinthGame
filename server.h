@@ -21,5 +21,6 @@ player_move_dir getMoveDirFromInput(int input);
 void collision(int index1, int index2);
 void finalize();
 void fillSharedMap(int index);
+int getSharedBlock(char *filename, size_t size, int index);
 
 #endif //LABYRINTHGAME_SERVER_H

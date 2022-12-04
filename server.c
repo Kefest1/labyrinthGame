@@ -116,10 +116,20 @@ void *inputListener(__attribute__((unused)) void *ptr) {
         free(arr);
     } while (inputChar != 'q' && inputChar != 'Q');
 
-    // finalize()
+    finalize();
 
 
     return NULL;
+}
+
+void erasePlayer(int index) {
+    int x, y;
+    x = players->players[index].xPosition;
+    y = players->players[index].yPosition;
+    // printf("%d %d", x, y);
+    mvwprintw(win, x, y, "%c", 32);
+    wrefresh(win);
+    refresh();
 }
 
 void *playerActionListener(void *ptr) {
@@ -134,28 +144,53 @@ void *playerActionListener(void *ptr) {
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
+//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+
                 playerCommunicator[i]->currentlyMoving = 1;
+
+//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                 sleep(ROUND_DURATION_SECONDS);
 
-                mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i, playerCommunicator[i]->playerInput);
+//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+
+                if (playerCommunicator[i]->hasJustDisconnected == 1) {
+                    erasePlayer(i);
+                    playerCommunicator[i]->playerStatus = NOT_CONNECTED;
+                    playerSharedConnector->totalPlayerCount--;
+                    playerSharedConnector->freeIndex = findFreeIndex();
+
+//                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+
+                    continue;
+                }
+
+                mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i + 1,
+                         playerCommunicator[i]->playerInput);
 
                 wrefresh(win);
                 refresh();
 
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
-                updateRoundNumber();
-                if (moveDir == PLAYER_QUIT) {
-                    // TODO playerQuit() //
-                }
-                movePlayer(i, moveDir);
-                mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i, moveDir);
 
+//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+
+                updateRoundNumber();
+
+                movePlayer(i, moveDir);
+                mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
+                debugging_counter++;
                 wrefresh(win);
                 refresh();
+//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 playerCommunicator[i]->currentlyMoving = 0;
+
+//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
             }
+
+            sleep(BETWEEN_ROUNDS_SLEEP);
+
         }
     }
 
@@ -167,23 +202,27 @@ void *playerActionListener(void *ptr) {
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
+//        pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
         if (playerSharedConnector->playerConnected == 1) {
+
             playerSharedConnector->playerConnected = 0;
 
             int indexAt = findFreeIndex();
+            printf("Free index = %d\n", indexAt);
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
                 continue;
             }
 
-
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
             playerSharedConnector->freeIndex = findFreeIndex();
 
             int *arr = getRandomFreePosition();
+
+            fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
 
             playerCommunicator[indexAt]->currentlyAtX = arr[0];
             playerCommunicator[indexAt]->currentlyAtY = arr[1];
@@ -198,10 +237,16 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerCommunicator[indexAt]->coinsBrought = 0;
             playerCommunicator[indexAt]->deaths = 0;
 
+            playerCommunicator[indexAt]->isCollision = 0;
+            playerCommunicator[indexAt]->locked = 0;
+            playerCommunicator[indexAt]->hasJustDisconnected = 0;
+
+
+
             paintPlayer(indexAt, arr[0], arr[1]);
 
             mvprintw(6, 68 + indexAt * 9, "0");
-            // wrefresh(win);
+            wrefresh(win);
             refresh();
 
             players->players[indexAt].deaths = 0;
@@ -211,9 +256,11 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             playerSharedConnector->totalPlayerCount++;
 
-            fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
-            free(arr);
 
+
+//            pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
+
+            free(arr);
         }
     }
 }
@@ -225,11 +272,10 @@ void createConnector(void) {
 
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
-//aaa
+
     pthread_mutexattr_t mutexattr;
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
-
 
     pthread_mutex_init(&playerSharedConnector->pthreadMutex, NULL);
 
@@ -258,7 +304,7 @@ void createCommunicator(void) {
         pthread_mutexattr_init(&mutexattr);
         pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-        pthread_mutex_init(&(playerCommunicator[4]->connectorMutex), &mutexattr);
+        pthread_mutex_init(&(playerCommunicator[i]->connectorMutex), &mutexattr);
         pthread_mutexattr_destroy(&mutexattr);
 
         (*(playerCommunicator + i))->playerIndex = i;
@@ -266,6 +312,7 @@ void createCommunicator(void) {
 
         (*(playerCommunicator + i))->mapAround.campsiteX = campsiteXCoordinate;
         (*(playerCommunicator + i))->mapAround.campsiteY = campsiteYCoordinate;
+        (*(playerCommunicator + i))->hasJustDisconnected = 0;
 
     }
 }
@@ -316,28 +363,39 @@ int main(void) {
 
     createAndDisplayServerStatistics();
 
-//    pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
-//    pthread_create(&inputListenerThread, NULL, inputListener, NULL);
-//    pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
+    pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
+    pthread_create(&inputListenerThread, NULL, inputListener, NULL);
+    pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
 
     sleep(DEBUG_SLEEP);
 
     endwin();
-    // finalize();
+    finalize();
     return 0;
 }
+
+
 
 void finalize(void) {
     free(players);
 
-    shmdt(playerSharedConnector);
+    pthread_mutex_destroy(&playerSharedConnector->pthreadMutex);
+    int conectorIndex = getSharedBlock(FILE_CONNECTOR, sizeof(player_connector_t), 0);
+    shmctl(conectorIndex, IPC_RMID, NULL);
 
     for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
-//        free(playerCommunicator[i]->connectorMutex);
-        shmdt(playerCommunicator[i]);
+        pthread_mutex_destroy(&(playerCommunicator[i]->connectorMutex));
+        int controllerIndex = getSharedBlock(FILE_COMMUNICATOR, sizeof(struct communicator_t), i);
+        shmctl(controllerIndex, IPC_RMID, NULL);
     }
 
     endwin();
+}
+
+int getSharedBlock(char *filename, size_t size, int index) {
+    key_t key = ftok(filename, index);
+
+    return shmget(key, size, IPC_CREAT);
 }
 
 void debugging(void) {
@@ -373,7 +431,6 @@ void playDebugging(void) {
 }
 
 int movePlayer(int index, player_move_dir playerMoveDir) {
-    //mvwprintw(inputWindow, 2, 1, "Trying to move...");
     int xFrom = players->players[index].xPosition, xTo;
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
@@ -581,7 +638,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         collision(index, 3);
     }
     if (fieldStatusTo == WILD_BEAST) {
-
+        // TODO Wild beast
     }
 
     players->players[index].xPosition = xTo;
@@ -763,8 +820,6 @@ player_move_dir getMoveDirFromInput(int input) {
         return MOVE_UP;
     if (input == KEY_DOWN)
         return MOVE_DOWN;
-    if (input == 'q' || input == 'Q')
-        return PLAYER_QUIT;
 
     return 0;
 }

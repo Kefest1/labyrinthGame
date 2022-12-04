@@ -120,15 +120,17 @@ int establishConnection(void) {
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    pthread_mutex_lock(&playerConnector->pthreadMutex);
+//    pthread_mutex_lock(&playerConnector->pthreadMutex);
 
     printf("Zrobione'd\n");
 
 
 
     serverProcessId = playerConnector->serverPid;
+
+
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
-        pthread_mutex_unlock(&playerConnector->pthreadMutex);
+//        pthread_mutex_unlock(&playerConnector->pthreadMutex);
         puts("Too many players\nTry again later.");
     }
     else {
@@ -140,7 +142,7 @@ int establishConnection(void) {
     // Already locked! //
     connectToCommunicator(playerID);
 
-    pthread_mutex_unlock(&playerConnector->pthreadMutex);
+//    pthread_mutex_unlock(&playerConnector->pthreadMutex);
 
     return 0;
 }
@@ -219,38 +221,51 @@ int getDirection(int input) {
 void *gameMove(void *ptr) {
     e:
 
-    while (playerCommunicator->currentlyMoving == 0);
-//    pthread_mutex_lock(playerCommunicator->connectorMutex);
+    while (1) {
+//        pthread_mutex_lock(&playerCommunicator->connectorMutex);
+
+        if (playerCommunicator->currentlyMoving == 1) {
+//            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+            break;
+        }
+//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+    }
+
+//    pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
     mvwprintw(messagesWindow, debug++, 1, "Give input");
     wrefresh(messagesWindow);
     refresh();
-//    pthread_mutex_unlock(playerCommunicator->connectorMutex);
-
 
     // UP DOWN LEFT RIGHT
     int isq = getch();
     if (isq == 'Q' || isq == 'q') {
+        playerCommunicator->hasJustDisconnected = 1;
+//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
         finalize();
         return NULL;
     }
+
     getch();
     int input = getch();
 
     input = getDirection(input);
 
+//    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
     wrefresh(messagesWindow);
     refresh();
 
     playerCommunicator->playerInput = input;
     while (1) {
-//        pthread_mutex_lock(playerCommunicator->connectorMutex);
+//        pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
-        if (playerCommunicator->currentlyMoving == 0)
+        if (playerCommunicator->currentlyMoving == 0) {
+//            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
             break;
+        }
 
-//        pthread_mutex_unlock(playerCommunicator->connectorMutex);
+//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
     printMapAround();
 
@@ -304,7 +319,7 @@ int main(void) {
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
-    sleep(DEBUG_SLEEP);
+    pthread_join(keyListenerThread, NULL);
 
     finalize();
     return 0;
