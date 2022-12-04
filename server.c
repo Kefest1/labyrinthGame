@@ -691,15 +691,43 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     }
     if (fieldStatusTo == PLAYER_1) {
         collision(index, 0);
+
+        wrefresh(win);
+        refresh();
+
+        fillSharedMap(index);
+
+        return 0;
     }
     if (fieldStatusTo == PLAYER_2) {
         collision(index, 1);
+
+        wrefresh(win);
+        refresh();
+
+        fillSharedMap(index);
+
+        return 0;
     }
     if (fieldStatusTo == PLAYER_3) {
         collision(index, 2);
+
+        wrefresh(win);
+        refresh();
+
+        fillSharedMap(index);
+
+        return 0;
     }
     if (fieldStatusTo == PLAYER_4) {
         collision(index, 3);
+
+        wrefresh(win);
+        refresh();
+
+        fillSharedMap(index);
+
+        return 0;
     }
     if (fieldStatusTo == WILD_BEAST) {
         // TODO Wild beast
