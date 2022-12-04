@@ -7,6 +7,9 @@
 
 #include "utils.h"
 #include <semaphore.h>
+#include <pthread.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #define MAX_PLAYERS MAX_PLAYER_COUNT
 
@@ -51,6 +54,8 @@ struct communicator_t {
     int currentlyAtY;
 
     _Bool hasJustDisconnected;
+
+    __pid_t playerProcessID;
 };
 
 typedef struct {

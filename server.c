@@ -54,6 +54,67 @@ void updateRoundNumber(void) {
     mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", ++roundNumber);
 }
 
+void updatePlayerPosition(int index) {
+    int xAt = players->players[index].xPosition;
+    int yAt = players->players[index].yPosition;
+
+    mvprintw(7, 68 + index * 9, "%d/%d", xAt, yAt);
+    refresh();
+}
+void clearPlayerPosition(int index) {
+    mvprintw(7, 68 + index * 9, "     ");
+    refresh();
+}
+
+void setPlayerProcessID(int index, __pid_t playerID) {
+    mvprintw(6, 68 + index * 9, "%d", playerID);
+    refresh();
+}
+
+void clearPlayerProcessID(int index) {
+    mvprintw(6, 68 + index * 9, "    ");
+    refresh();
+}
+
+void updatePlayerDeathsCount(int index) {
+    int playerDeaths = players->players[index].deaths;
+    mvprintw(8, 68 + index * 9, "%d", playerDeaths);
+    refresh();
+}
+
+void clearPlayerDeathsCount(int index) {
+    mvprintw(8, 68 + index * 9, "    ");
+    refresh();
+}
+
+void updatePlayerCarriedCoins(int index) {
+    int coinsCarried = players->players[index].coinsCarried;
+    mvprintw(11, 68 + index * 9, "%d", coinsCarried);
+
+    refresh();
+}
+
+void clearPlayerCarriedCoins(int index) {
+    mvprintw(11, 68 + index * 9, "    ");
+
+    refresh();
+
+}
+
+void updatePlayerBroughtCoins(int index) {
+    int coinsBrought = players->players[index].coinsBrought;
+    mvprintw(12, 68 + index * 9, "%d", coinsBrought);
+
+    refresh();
+
+}
+
+void clearPlayerBroughtCoins(int index) {
+    mvprintw(12, 68 + index * 9, "    ");
+    refresh();
+
+}
+
 void createAndDisplayServerStatistics(void) {
     serverProcessId = getpid();
 
@@ -82,9 +143,6 @@ void prepareServer(void) {
     noecho();
     droppedTreasureCount = 0;
     readMap();
-
-
-
     players = calloc(1, sizeof(struct players_t));
 }
 
@@ -160,6 +218,13 @@ void *playerActionListener(void *ptr) {
                     playerSharedConnector->totalPlayerCount--;
                     playerSharedConnector->freeIndex = findFreeIndex();
 
+                    clearPlayerPosition(i);
+                    clearPlayerProcessID(i);
+                    clearPlayerDeathsCount(i);
+                    clearPlayerCarriedCoins(i);
+                    clearPlayerBroughtCoins(i);
+
+                    //
 //                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                     continue;
@@ -209,7 +274,6 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerSharedConnector->playerConnected = 0;
 
             int indexAt = findFreeIndex();
-            printf("Free index = %d\n", indexAt);
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
@@ -237,15 +301,19 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             playerCommunicator[indexAt]->coinsBrought = 0;
             playerCommunicator[indexAt]->deaths = 0;
 
+            updatePlayerDeathsCount(indexAt);
+            updatePlayerCarriedCoins(indexAt);
+            updatePlayerBroughtCoins(indexAt);
+
             playerCommunicator[indexAt]->isCollision = 0;
             playerCommunicator[indexAt]->locked = 0;
             playerCommunicator[indexAt]->hasJustDisconnected = 0;
 
-
+            setPlayerProcessID(indexAt, playerCommunicator[indexAt]->playerProcessID);
+            updatePlayerPosition(indexAt);
 
             paintPlayer(indexAt, arr[0], arr[1]);
 
-            mvprintw(6, 68 + indexAt * 9, "0");
             wrefresh(win);
             refresh();
 
@@ -255,10 +323,6 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             players->totalPlayers += 1;
 
             playerSharedConnector->totalPlayerCount++;
-
-
-
-//            pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
             free(arr);
         }
@@ -285,6 +349,7 @@ void createConnector(void) {
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
     playerSharedConnector->serverPid = getpid();
+
 }
 
 void createCommunicator(void) {
@@ -373,8 +438,6 @@ int main(void) {
     finalize();
     return 0;
 }
-
-
 
 void finalize(void) {
     free(players);
@@ -467,9 +530,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     }
 
 
-
-
-
     goingToCampsite = (xTo == campsiteXCoordinate) && (yTo == campsiteXCoordinate);
 
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
@@ -491,6 +551,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
 
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
+        updatePlayerPosition(index);
     }
     if (fieldStatusTo == WALL) {
         fillSharedMap(index);
@@ -517,6 +578,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtX = xTo;
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsPicked += LARGE_TREASURE_COINS;
+        updatePlayerCarriedCoins(index);
 
     }
     if (fieldStatusTo == TREASURE) {
@@ -541,6 +603,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtX = xTo;
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsPicked += TREASURE_COINS;
+        updatePlayerCarriedCoins(index);
 
     }
     if (fieldStatusTo == ONE_COIN) {
@@ -564,6 +627,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtX = xTo;
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsPicked += ONE_COIN_COINS;
+        updatePlayerCarriedCoins(index);
 
     }
     if (fieldStatusTo == BUSHES) {
@@ -643,6 +707,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
     players->players[index].xPosition = xTo;
     players->players[index].yPosition = yTo;
+    updatePlayerPosition(index);
+
     wrefresh(win);
     refresh();
 

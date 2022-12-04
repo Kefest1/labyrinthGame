@@ -122,9 +122,6 @@ int establishConnection(void) {
 
 //    pthread_mutex_lock(&playerConnector->pthreadMutex);
 
-    printf("Zrobione'd\n");
-
-
 
     serverProcessId = playerConnector->serverPid;
 
@@ -184,6 +181,12 @@ int connectToCommunicator(int playerConnectionIndex) {
 
     playerCommunicator =
             (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
+
+    pthread_mutex_lock(&playerCommunicator->connectorMutex);
+
+    playerCommunicator->playerProcessID = getpid();
+
+    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
 
     return 0;
 }
