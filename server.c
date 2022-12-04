@@ -5,8 +5,10 @@
 #include "server.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
@@ -28,8 +30,6 @@ int droppedTreasureCount;
 struct communicator_t *playerCommunicator[MAX_PLAYER_COUNT];
 player_connector_t *playerSharedConnector;
 struct players_t *players; // Not for players processes
-
-
 
 WINDOW *win;
 WINDOW *inputWindow;
@@ -175,18 +175,13 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
-
-
                 continue;
             }
 
-//            pthread_mutex_lock(playerCommunicator[indexAt]->connectorMutex);
 
             playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
             playerSharedConnector->freeIndex = findFreeIndex();
-//            mvprintw(16, 60, "%d", playerSharedConnector->freeIndex);
-//            refresh();
 
             int *arr = getRandomFreePosition();
 
@@ -230,13 +225,13 @@ void createConnector(void) {
 
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
-
+//aaa
     pthread_mutexattr_t mutexattr;
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-    playerSharedConnector->pthreadMutex = calloc(1u, sizeof(pthread_mutex_t));
-    pthread_mutex_init(playerSharedConnector->pthreadMutex, &mutexattr);
+
+    pthread_mutex_init(&playerSharedConnector->pthreadMutex, NULL);
 
     pthread_mutexattr_destroy(&mutexattr);
 
@@ -259,13 +254,11 @@ void createCommunicator(void) {
                 (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
 
-        (*(playerCommunicator + i))->connectorMutex = malloc(1 * sizeof(pthread_mutex_t));
-
         pthread_mutexattr_t mutexattr;
         pthread_mutexattr_init(&mutexattr);
         pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-        int test = pthread_mutex_init((*(playerCommunicator + i))->connectorMutex, &mutexattr);
+        pthread_mutex_init(&(playerCommunicator[4]->connectorMutex), &mutexattr);
         pthread_mutexattr_destroy(&mutexattr);
 
         (*(playerCommunicator + i))->playerIndex = i;
@@ -313,10 +306,6 @@ void displayMap(void) {
     refresh();
 }
 
-void createListener(void) {
-//    pthread_t playerListenerThread, inputListenerThread;
-
-}
 
 int main(void) {
     createConnector();
@@ -327,23 +316,14 @@ int main(void) {
 
     createAndDisplayServerStatistics();
 
-//    pthread_t playerListenerThread, inputListenerThread;
-    pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
-    pthread_create(&inputListenerThread, NULL, inputListener, NULL);
-    pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
+//    pthread_create(&playerListenerThread, NULL, playerConnector, NULL);
+//    pthread_create(&inputListenerThread, NULL, inputListener, NULL);
+//    pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
 
-    // pthread_join(playerListenerThread, NULL);
-/*
-//    debugging();
-    pthread_join(playerListenerThread, NULL);
-    shmdt(playerSharedConnector);
-    free(players);
-
-    endwin();
-*/
     sleep(DEBUG_SLEEP);
 
-    finalize();
+    endwin();
+    // finalize();
     return 0;
 }
 
@@ -353,7 +333,7 @@ void finalize(void) {
     shmdt(playerSharedConnector);
 
     for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
-        free(playerCommunicator[i]->connectorMutex);
+//        free(playerCommunicator[i]->connectorMutex);
         shmdt(playerCommunicator[i]);
     }
 

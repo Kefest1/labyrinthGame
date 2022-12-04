@@ -14,7 +14,7 @@
 #define ROUND_DURATION_SECONDS 3u
 #define ROUND_DURATION_MILLI_SECONDS (1000u * ROUND_DURATION_SECONDS)
 
-#define DEBUG_SLEEP 120u
+#define DEBUG_SLEEP 60u
 
 typedef struct {
     field_status_t aroundPlayers[RANGE_OF_VIEW][RANGE_OF_VIEW];
@@ -35,7 +35,7 @@ struct player_server_communicator_t {
 };
 
 struct communicator_t {
-    pthread_mutex_t *connectorMutex;
+    pthread_mutex_t connectorMutex;
 //    sem_t semaphore;
 
     int playerInput;

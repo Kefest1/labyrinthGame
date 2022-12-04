@@ -23,7 +23,13 @@ pthread_t keyListenerThread;
 
 WINDOW *messagesWindow;
 WINDOW *map;
+
 #define LABYRINTH_WIDTH  51
+
+#define LABYRINTH_HEIGHT 25
+
+int mapCleanerX = -1;
+int mapCleanerY;
 
 // <Statistics> //
 int xCaptionStartLoc = 1;
@@ -114,17 +120,19 @@ int establishConnection(void) {
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    pthread_mutex_lock(playerConnector->pthreadMutex);
+    pthread_mutex_lock(&playerConnector->pthreadMutex);
 
-    pthread_mutex_unlock(playerConnector->pthreadMutex);
+    printf("Zrobione'd\n");
+
+
 
     serverProcessId = playerConnector->serverPid;
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
+        pthread_mutex_unlock(&playerConnector->pthreadMutex);
         puts("Too many players\nTry again later.");
     }
     else {
         playerID = playerConnector->freeIndex;
-
         refresh();
     }
     playerConnector->playerConnected = 1;
@@ -132,14 +140,12 @@ int establishConnection(void) {
     // Already locked! //
     connectToCommunicator(playerID);
 
+    pthread_mutex_unlock(&playerConnector->pthreadMutex);
+
     return 0;
 }
 
-#define LABYRINTH_WIDTH  51
-#define LABYRINTH_HEIGHT 25
 
-int mapCleanerX = -1;
-int mapCleanerY;
 
 void printMapAround(void) {
     if (mapCleanerX != -1) {
@@ -170,8 +176,6 @@ void printMapAround(void) {
 int connectToCommunicator(int playerConnectionIndex) {
     key_t key = ftok(FILE_COMMUNICATOR, playerConnectionIndex);
 
-    // mvprintw(3, 3, "PlayerID: %d", playerConnectionIndex);
-    refresh();
 
     int sharedBlockId = shmget(key, sizeof(struct communicator_t),
                                IPC_CREAT);
@@ -289,7 +293,6 @@ void finalize(void) {
 }
 
 int main(void) {
-    //srand(time(NULL));
 
     setGameUp();
     createMessageWindow();
@@ -302,9 +305,6 @@ int main(void) {
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);
 
     sleep(DEBUG_SLEEP);
-//    pthread_join(keyListenerThread, NULL);
-//    setenv("TERMINFO","/usr/share/terminfo", 1);
-
 
     finalize();
     return 0;

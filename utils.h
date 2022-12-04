@@ -28,7 +28,7 @@ typedef enum {
 
 // Shared between player processes //
 typedef struct {
-    pthread_mutex_t *pthreadMutex;
+    pthread_mutex_t pthreadMutex;
 
     _Bool playerConnected;
     int totalPlayerCount;
