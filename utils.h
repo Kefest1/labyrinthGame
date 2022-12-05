@@ -87,6 +87,9 @@ typedef struct {
     int yPosition;
 
     field_status_t currentlyOn;
+
+    int index;
+    sem_t semaphore;
 } wild_beast_t;
 
 struct players_t {

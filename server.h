@@ -26,5 +26,7 @@ int getFreeTreasurePos(void);
 int isPlayer(field_status_t fieldStatus);
 int getIndexFromStatus(field_status_t fieldStatus);
 void moveBeast(int index);
+void *wildBeastFunction(void *ptr);
+char getCharacterFromStatus(field_status_t fieldStatusChar);
 
 #endif //LABYRINTHGAME_SERVER_H
