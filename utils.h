@@ -34,6 +34,7 @@ typedef enum {
 // Shared between player processes //
 typedef struct {
     pthread_mutex_t pthreadMutex;
+    pthread_mutex_t joiningMutex;
 
     _Bool playerConnected;
     int totalPlayerCount;
@@ -100,7 +101,7 @@ typedef enum {
     MOVE_RIGHT,
     MOVE_UP,
     MOVE_DOWN
-} player_move_dir;
+} player_move_dir, beast_move_dir;
 
 typedef struct {
     int x;

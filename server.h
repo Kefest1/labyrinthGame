@@ -23,5 +23,8 @@ void finalize();
 void fillSharedMap(int index);
 int getSharedBlock(char *filename, size_t size, int index);
 int getFreeTreasurePos(void);
+int isPlayer(field_status_t fieldStatus);
+int getIndexFromStatus(field_status_t fieldStatus);
+void moveBeast(int index);
 
 #endif //LABYRINTHGAME_SERVER_H

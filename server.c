@@ -11,7 +11,7 @@
 #include <signal.h>
 
 int killThreads = 0;
-
+int wildBeastCount = 0;
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
 
@@ -78,7 +78,7 @@ void updatePlayerProcessID(int index, __pid_t playerID) {
 }
 
 void clearPlayerProcessID(int index) {
-    mvprintw(6, 68 + index * 9, "    ");
+    mvprintw(6, 68 + index * 9, "      ");
     refresh();
 }
 
@@ -179,6 +179,23 @@ void *inputListener(__attribute__((unused)) void *ptr) {
             finalize();
         }
 
+        if (inputChar == 'B' || inputChar == 'b') {
+            if (wildBeastCount != MAX_BEAST_COUNT) {
+                int *arrBeast = getRandomFreePosition();
+                int xBeast = arrBeast[0], yBeast = arrBeast[1];
+
+
+                mvwprintw(win, xBeast, yBeast, "*");
+                fieldStatus[xBeast][yBeast] = WILD_BEAST;
+
+                players->wildBeast[wildBeastCount].xPosition = xBeast;
+                players->wildBeast[wildBeastCount].yPosition = yBeast;
+                wildBeastCount++;
+                wrefresh(win);
+                refresh();
+            }
+        }
+
         wrefresh(win);
         refresh();
 
@@ -223,13 +240,13 @@ void *playerActionListener(void *ptr) {
 
                 sleep(ROUND_DURATION_SECONDS);
 
-                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 if (playerCommunicator[i]->hasJustDisconnected == 1) {
                     erasePlayer(i);
                     playerCommunicator[i]->playerStatus = NOT_CONNECTED;
 
-                    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
+//                    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
                     playerSharedConnector->totalPlayerCount--;
                     playerSharedConnector->freeIndex = findFreeIndex();
@@ -243,7 +260,7 @@ void *playerActionListener(void *ptr) {
                     clearPlayerBroughtCoins(i);
 
                     //
-                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+//                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                     continue;
                 }
@@ -272,6 +289,12 @@ void *playerActionListener(void *ptr) {
 
             sleep(BETWEEN_ROUNDS_SLEEP);
 
+        }
+
+        for (int i = 0; i < wildBeastCount; i++) {
+            wrefresh(win);
+            refresh();
+            moveBeast(i);
         }
     }
 
@@ -338,8 +361,9 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             players->players[indexAt].coinsCarried = 0;
             players->players[indexAt].coinsBrought = 0;
             players->totalPlayers += 1;
-
+            fillSharedMap(indexAt);
             playerSharedConnector->totalPlayerCount++;
+            pthread_mutex_unlock(&playerSharedConnector->joiningMutex);
 
             free(arr);
         }
@@ -361,6 +385,7 @@ void createConnector(void) {
     pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
     pthread_mutex_init(&playerSharedConnector->pthreadMutex, &mutexattr);
+    pthread_mutex_init(&playerSharedConnector->joiningMutex, &mutexattr);
 
     pthread_mutexattr_destroy(&mutexattr);
 
@@ -438,6 +463,335 @@ void displayMap(void) {
     refresh();
 }
 
+
+
+void moveBeast(int index) {
+    srand((unsigned int) time(NULL));
+
+    int xBeast = players->wildBeast[index].xPosition;
+    int yBeast = players->wildBeast[index].yPosition;
+    mvprintw(8, 65, "%d %d", xBeast, yBeast);
+    field_status_t beastAt = players->wildBeast[index].currentlyOn;
+
+    beast_move_dir beastMoveDir;
+    field_status_t fieldStatusTo;
+
+    int nextMoveDetermined = 0;
+    int willKill = 0;
+
+    if (isPlayer(fieldStatus[xBeast + 1][yBeast]))
+        beastMoveDir = MOVE_DOWN, nextMoveDetermined = 1, willKill = 1;
+    if (isPlayer(fieldStatus[xBeast - 1][yBeast]))
+        beastMoveDir = MOVE_UP, nextMoveDetermined = 1, willKill = 1;
+    if (isPlayer(fieldStatus[xBeast][yBeast + 1]))
+        beastMoveDir = MOVE_RIGHT, nextMoveDetermined = 1, willKill = 1;
+    if (isPlayer(fieldStatus[xBeast][yBeast - 1]))
+        beastMoveDir = MOVE_LEFT, nextMoveDetermined = 1, willKill = 1;
+
+    if (willKill) {
+        if (beastMoveDir == MOVE_DOWN) {
+            int playerIndex = getIndexFromStatus(fieldStatus[xBeast + 1][yBeast]);
+            mvwprintw(win, xBeast + 1, yBeast, "*");
+            fieldStatus[xBeast + 1][yBeast] = WILD_BEAST;
+
+            int xPlayer = players->players[playerIndex].xStartPosition;
+            int yPlayer = players->players[playerIndex].yStartPosition;
+
+            while (fieldStatus[xPlayer][yPlayer] != FREE_BLOCK) {
+                int *arr = getRandomFreePosition();
+                xPlayer = arr[0];
+                yPlayer = arr[1];
+
+                free(arr);
+            }
+
+            int droppedTreasureVal = players->players[playerIndex].coinsCarried;
+            players->players[playerIndex].coinsCarried = 0;
+
+            if (droppedTreasureVal) {
+                int droppedTreasureIndex = getFreeTreasurePos();
+                droppedTreasure[droppedTreasureIndex].coins = droppedTreasureVal;
+                droppedTreasure[droppedTreasureIndex].x = xBeast;
+                droppedTreasure[droppedTreasureIndex].y = yBeast;
+                droppedTreasureStatus[droppedTreasureIndex] = EXIST;
+            }
+            players->wildBeast[index].xPosition++;
+
+            fieldStatus[xPlayer][yPlayer] = getStatusFromIndex(playerIndex);
+            mvwprintw(win, xPlayer, yPlayer, "%c", '0' + playerIndex);
+            wrefresh(win);
+            refresh();
+
+            return;
+        }
+        if (beastMoveDir == MOVE_UP) {
+            int playerIndex = getIndexFromStatus(fieldStatus[xBeast - 1][yBeast]);
+            mvwprintw(win, xBeast - 1, yBeast, "*");
+            fieldStatus[xBeast - 1][yBeast] = WILD_BEAST;
+
+            int xPlayer = players->players[playerIndex].xStartPosition;
+            int yPlayer = players->players[playerIndex].yStartPosition;
+
+            while (fieldStatus[xPlayer][yPlayer] != FREE_BLOCK) {
+                int *arr = getRandomFreePosition();
+                xPlayer = arr[0];
+                yPlayer = arr[1];
+
+                free(arr);
+            }
+
+            int droppedTreasureVal = players->players[playerIndex].coinsCarried;
+            players->players[playerIndex].coinsCarried = 0;
+
+            if (droppedTreasureVal) {
+                int droppedTreasureIndex = getFreeTreasurePos();
+                droppedTreasure[droppedTreasureIndex].coins = droppedTreasureVal;
+                droppedTreasure[droppedTreasureIndex].x = xBeast;
+                droppedTreasure[droppedTreasureIndex].y = yBeast;
+                droppedTreasureStatus[droppedTreasureIndex] = EXIST;
+            }
+
+            players->wildBeast[index].xPosition--;
+
+
+            fieldStatus[xPlayer][yPlayer] = getStatusFromIndex(playerIndex);
+            mvwprintw(win, xPlayer, yPlayer, "%c", '0' + playerIndex);
+            wrefresh(win);
+            refresh();
+            return;
+        }
+        if (beastMoveDir == MOVE_RIGHT) {
+            int playerIndex = getIndexFromStatus(fieldStatus[xBeast][yBeast + 1]);
+            mvwprintw(win, xBeast, yBeast + 1, "*");
+            fieldStatus[xBeast][yBeast + 1] = WILD_BEAST;
+
+            int xPlayer = players->players[playerIndex].xStartPosition;
+            int yPlayer = players->players[playerIndex].yStartPosition;
+
+            while (fieldStatus[xPlayer][yPlayer] != FREE_BLOCK) {
+                int *arr = getRandomFreePosition();
+                xPlayer = arr[0];
+                yPlayer = arr[1];
+
+                free(arr);
+            }
+
+            int droppedTreasureVal = players->players[playerIndex].coinsCarried;
+            players->players[playerIndex].coinsCarried = 0;
+
+            if (droppedTreasureVal) {
+                int droppedTreasureIndex = getFreeTreasurePos();
+                droppedTreasure[droppedTreasureIndex].coins = droppedTreasureVal;
+                droppedTreasure[droppedTreasureIndex].x = xBeast;
+                droppedTreasure[droppedTreasureIndex].y = yBeast;
+                droppedTreasureStatus[droppedTreasureIndex] = EXIST;
+            }
+            players->wildBeast[index].yPosition++;
+
+            fieldStatus[xPlayer][yPlayer] = getStatusFromIndex(playerIndex);
+            mvwprintw(win, xPlayer, yPlayer, "%c", '0' + playerIndex);
+            wrefresh(win);
+            refresh();
+            return;
+        }
+        if (beastMoveDir == MOVE_LEFT) {
+            int playerIndex = getIndexFromStatus(fieldStatus[xBeast][yBeast - 1]);
+            mvwprintw(win, xBeast, yBeast - 1, "*");
+            fieldStatus[xBeast][yBeast - 1] = WILD_BEAST;
+
+            int xPlayer = players->players[playerIndex].xStartPosition;
+            int yPlayer = players->players[playerIndex].yStartPosition;
+
+            while (fieldStatus[xPlayer][yPlayer] != FREE_BLOCK) {
+                int *arr = getRandomFreePosition();
+                xPlayer = arr[0];
+                yPlayer = arr[1];
+
+                free(arr);
+            }
+
+            int droppedTreasureVal = players->players[playerIndex].coinsCarried;
+            players->players[playerIndex].coinsCarried = 0;
+
+            if (droppedTreasureVal) {
+                int droppedTreasureIndex = getFreeTreasurePos();
+                droppedTreasure[droppedTreasureIndex].coins = droppedTreasureVal;
+                droppedTreasure[droppedTreasureIndex].x = xBeast;
+                droppedTreasure[droppedTreasureIndex].y = yBeast;
+                droppedTreasureStatus[droppedTreasureIndex] = EXIST;
+            }
+            players->wildBeast[index].yPosition--;
+
+            fieldStatus[xPlayer][yPlayer] = getStatusFromIndex(playerIndex);
+            mvwprintw(win, xPlayer, yPlayer, "%c", '0' + playerIndex);
+            wrefresh(win);
+            refresh();
+            return;
+        }
+
+        return;
+    }
+
+
+    if (xBeast + 2 < LABYRINTH_WIDTH)
+        if (fieldStatus[xBeast + 1][yBeast] == FREE_BLOCK && isPlayer(fieldStatus[xBeast + 2][yBeast]))
+            beastMoveDir = MOVE_DOWN, nextMoveDetermined = 1;
+    if (xBeast - 2 >= 0)
+        if (fieldStatus[xBeast - 1][yBeast] == FREE_BLOCK && isPlayer(fieldStatus[xBeast - 2][yBeast]))
+            beastMoveDir = MOVE_UP, nextMoveDetermined = 1;
+    if (yBeast + 2 < LABYRINTH_HEIGHT)
+        if (fieldStatus[xBeast][yBeast + 1] == FREE_BLOCK && isPlayer(fieldStatus[xBeast][yBeast + 2]))
+            beastMoveDir = MOVE_RIGHT, nextMoveDetermined = 1;
+    if (yBeast - 2 >= 0)
+        if (fieldStatus[xBeast][yBeast - 1] == FREE_BLOCK && isPlayer(fieldStatus[xBeast][yBeast - 2]))
+            beastMoveDir = MOVE_LEFT, nextMoveDetermined = 1;
+
+
+    if (nextMoveDetermined == 1) {
+
+        // Chase //
+        if (beastMoveDir == MOVE_DOWN) {
+            fieldStatus[xBeast][yBeast] = FREE_BLOCK;
+            fieldStatus[xBeast + 1][yBeast] = WILD_BEAST;
+            mvwprintw(win, xBeast, yBeast, " "); // TODO WHERE IT WAS! //
+            mvwprintw(win, xBeast + 1, yBeast, "*");
+
+            wrefresh(win);
+            refresh();
+
+            fillSharedMap(index);
+            updateRoundNumber();
+        }
+        if (beastMoveDir == MOVE_UP) {
+            fieldStatus[xBeast][yBeast] = FREE_BLOCK;
+            fieldStatus[xBeast - 1][yBeast] = WILD_BEAST;
+
+            mvwprintw(win, xBeast, yBeast, " "); // TODO WHERE IT WAS! //
+            mvwprintw(win, xBeast - 1, yBeast, "*");
+
+            wrefresh(win);
+            refresh();
+
+            fillSharedMap(index);
+            updateRoundNumber();
+        }
+        if (beastMoveDir == MOVE_LEFT) {
+            fieldStatus[xBeast][yBeast] = FREE_BLOCK;
+            fieldStatus[xBeast][yBeast - 1] = WILD_BEAST;
+
+            mvwprintw(win, xBeast, yBeast, " "); // TODO WHERE IT WAS! //
+            mvwprintw(win, xBeast, yBeast - 1, "*");
+
+            wrefresh(win);
+            refresh();
+
+            fillSharedMap(index);
+            updateRoundNumber();
+        }
+        if (beastMoveDir == MOVE_RIGHT) {
+            fieldStatus[xBeast][yBeast] = FREE_BLOCK;
+            fieldStatus[xBeast][yBeast + 1] = WILD_BEAST;
+
+            mvwprintw(win, xBeast, yBeast, " "); // TODO WHERE IT WAS! //
+            mvwprintw(win, xBeast, yBeast + 1, "*");
+
+            wrefresh(win);
+            refresh();
+
+            fillSharedMap(index);
+            updateRoundNumber();
+        }
+
+        return;
+    }
+
+
+    int xRand = rand() % 4;
+    if (xRand == 0)
+        beastMoveDir = MOVE_LEFT;
+    if (xRand == 1)
+        beastMoveDir = MOVE_UP;
+    if (xRand == 2)
+        beastMoveDir = MOVE_RIGHT;
+    if (xRand == 3)
+        beastMoveDir = MOVE_DOWN;
+
+
+
+
+    mvwprintw(win, 4, 65, "%d %d", xBeast, yBeast);
+    refresh();
+    wrefresh(win);
+
+    if (beastMoveDir == MOVE_LEFT) {
+        fieldStatusTo = fieldStatus[xBeast][yBeast - 1];
+    }
+    if (beastMoveDir == MOVE_RIGHT) {
+        fieldStatusTo = fieldStatus[xBeast][yBeast + 1];
+    }
+    if (beastMoveDir == MOVE_DOWN) {
+        fieldStatusTo = fieldStatus[xBeast + 1][yBeast];
+    }
+    if (beastMoveDir == MOVE_UP) {
+        fieldStatusTo = fieldStatus[xBeast - 1][yBeast];
+    }
+
+
+    if (fieldStatusTo == WALL) {
+        mvwprintw(win, 0, 0, "BeastMoves WaLL");
+        for (int i = 0; i < MAX_PLAYERS; i++)
+            if (playerCommunicator[i]->playerStatus == CONNECTED)
+                fillSharedMap(i);
+
+        updateRoundNumber();
+        return;
+
+    } else {
+        mvwprintw(win, 0, 20, "BeastMoves FREE");
+
+        if (beastMoveDir == MOVE_LEFT) {
+            players->wildBeast[index].yPosition--;
+
+            fieldStatus[xBeast][yBeast - 1] = WILD_BEAST;
+            mvwprintw(win, xBeast, yBeast - 1,  "*");
+        }
+        if (beastMoveDir == MOVE_RIGHT) {
+            players->wildBeast[index].yPosition++;
+
+            fieldStatus[xBeast][yBeast + 1] = WILD_BEAST;
+            mvwprintw(win, xBeast, yBeast + 1, "*");
+        }
+        if (beastMoveDir == MOVE_DOWN) {
+            players->wildBeast[index].xPosition++;
+
+            fieldStatus[xBeast + 1][yBeast] = WILD_BEAST;
+            mvwprintw(win, xBeast + 1, yBeast, "*");
+        }
+        if (beastMoveDir == MOVE_UP) {
+            players->wildBeast[index].xPosition--;
+
+            fieldStatus[xBeast - 1][yBeast] = WILD_BEAST;
+            mvwprintw(win, xBeast - 1, yBeast, "*");
+        }
+
+        fieldStatus[xBeast][yBeast] = FREE_BLOCK;
+        mvwprintw(win, xBeast, yBeast, " "); // TODO WHERE IT WAS! //
+
+        wrefresh(win);
+        refresh();
+
+        fillSharedMap(index);
+        updateRoundNumber();
+
+        for (int i = 0; i < MAX_PLAYERS; i++)
+            if (playerCommunicator[i]->playerStatus == CONNECTED)
+                fillSharedMap(i);
+
+        updateRoundNumber();
+        return;
+    }
+
+}
 
 int main(void) {
     createConnector();
@@ -527,7 +881,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
 
-    updateRoundNumber();
 
     pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
@@ -574,18 +927,18 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             wrefresh(win);
             refresh();
         }
-
-        if (isOnBushes) {
-            fieldStatus[xFrom][yFrom] = BUSHES;
-            mvwprintw(win, xFrom, yFrom, "#");
-            wrefresh(win);
-            refresh();
-        }
         else {
-            fieldStatus[xFrom][yFrom] = FREE_BLOCK;
-            mvwprintw(win, xFrom, yFrom, " ");
-            wrefresh(win);
-            refresh();
+            if (isOnBushes) {
+                fieldStatus[xFrom][yFrom] = BUSHES;
+                mvwprintw(win, xFrom, yFrom, "#");
+                wrefresh(win);
+                refresh();
+            } else {
+                fieldStatus[xFrom][yFrom] = FREE_BLOCK;
+                mvwprintw(win, xFrom, yFrom, " ");
+                wrefresh(win);
+                refresh();
+            }
         }
 
         playerCommunicator[index]->currentlyAtX = xTo;
@@ -731,9 +1084,11 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             fieldStatus[xFrom][yFrom] = FREE_BLOCK;
             mvwprintw(win, xFrom, yFrom, " ");
         }
+
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
         fillSharedMap(index);
         updateRoundNumber();
+
         return 0;
     }
     if (fieldStatusTo == CAMPSITE) {
@@ -749,20 +1104,29 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         if (isOnBushes) {
             fieldStatus[xFrom][yFrom] = BUSHES;
             mvwprintw(win, xFrom, yFrom, "#");
+            wrefresh(win);
+            refresh();
         }
         else {
             fieldStatus[xFrom][yFrom] = FREE_BLOCK;
             mvwprintw(win, xFrom, yFrom, " ");
+            wrefresh(win);
+            refresh();
         }
 
         fieldStatus[xTo][yTo] = getStatusFromIndex(index);
+        mvwprintw(win, xTo, yTo, "%c", '1' + index);
+        wrefresh(win);
+        refresh();
 
         playerCommunicator[index]->currentlyAtX = xTo;
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsBrought += playerCommunicator[index]->coinsPicked;
         playerCommunicator[index]->coinsPicked = 0;
+
         fillSharedMap(index);
         updateRoundNumber();
+
         return 0;
     }
     if (fieldStatusTo == DROPPED_TREASURE) {
@@ -1056,6 +1420,20 @@ field_status_t getStatusFromIndex(int index) {
     if (index == 2) return PLAYER_3;
     return PLAYER_4;
 }
+
+int getIndexFromStatus(field_status_t fieldStatus) {
+    if (fieldStatus == PLAYER_1 || fieldStatus == PLAYER_1_ON_BUSH)
+        return 0;
+    if (fieldStatus == PLAYER_2 || fieldStatus == PLAYER_2_ON_BUSH)
+        return 1;
+    if (fieldStatus == PLAYER_3 || fieldStatus == PLAYER_3_ON_BUSH)
+        return 2;
+    if (fieldStatus == PLAYER_4 || fieldStatus == PLAYER_4_ON_BUSH)
+        return 3;
+
+    return -1;
+}
+
 field_status_t getStatusFromIndexBushed(int index) {
     if (index == 0) return PLAYER_1_ON_BUSH;
     if (index == 1) return PLAYER_2_ON_BUSH;
@@ -1108,4 +1486,25 @@ int getFreeTreasurePos(void) {
             return i;
 
     return -1;
+}
+
+int isPlayer(field_status_t fieldStatus1) {
+    if (fieldStatus1 == PLAYER_1)
+        return 1;
+    if (fieldStatus1 == PLAYER_2)
+        return 1;
+    if (fieldStatus1 == PLAYER_3)
+        return 1;
+    if (fieldStatus1 == PLAYER_4)
+        return 1;
+    if (fieldStatus1 == PLAYER_1_ON_BUSH)
+        return 1;
+    if (fieldStatus1 == PLAYER_2_ON_BUSH)
+        return 1;
+    if (fieldStatus1 == PLAYER_3_ON_BUSH)
+        return 1;
+    if (fieldStatus1 == PLAYER_4_ON_BUSH)
+        return 1;
+
+    return 0;
 }
