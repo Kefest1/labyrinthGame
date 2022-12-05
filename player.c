@@ -65,7 +65,7 @@ void updatePlayerCarriedCoins(void) {
 }
 
 void updatePlayerBroughtCoins(void) {
-    mvprintw(xCaptionStartLoc + 10, yCaptionStartLoc + 10, "%d", playerCommunicator->coinsBrought);
+    mvprintw(xCaptionStartLoc + 11, yCaptionStartLoc + 10, "%d", playerCommunicator->coinsBrought);
     refresh();
 }
 
@@ -124,6 +124,7 @@ void *updateRound(void *ptr) {
     inf_loop:
 
     pthread_mutex_lock(&playerConnector->pthreadMutex);
+    pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
     if (playerConnector->rounds != roundNumber) {
         mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", playerConnector->rounds);
@@ -134,6 +135,7 @@ void *updateRound(void *ptr) {
 
     refresh();
 
+    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     pthread_mutex_unlock(&playerConnector->pthreadMutex);
 
     goto inf_loop;
@@ -156,7 +158,7 @@ void createAndDisplayStatistics(void) {
     i++;
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "Coins");
     mvprintw(xCaptionStartLoc + i++, yCaptionStartLoc, "%s", "\tCarried");
-    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tbrought");
+    mvprintw(xCaptionStartLoc + i, yCaptionStartLoc, "%s", "\tBrought");
     // TODO legend
 
     refresh();
@@ -289,7 +291,7 @@ void *gameMove(void *ptr) {
 
     pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
-    mvwprintw(messagesWindow, debug++, 1, "Give input");
+    mvwprintw(messagesWindow, debug, 1, "Give input        ");
 
     wrefresh(messagesWindow);
     refresh();
@@ -310,7 +312,7 @@ void *gameMove(void *ptr) {
 
     pthread_mutex_unlock(&playerCommunicator->connectorMutex);
 
-    mvwprintw(messagesWindow, debug++, 1, "Your input: %d", input);
+    mvwprintw(messagesWindow, debug, 1, "Your input: %d   ", input);
     wrefresh(messagesWindow);
     refresh();
 
@@ -326,7 +328,7 @@ void *gameMove(void *ptr) {
         pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
 
-    mvwprintw(messagesWindow, debug++, 2, "Wait for your turn");
+    mvwprintw(messagesWindow, debug, 1, "Wait for your turn");
     wrefresh(messagesWindow);
     refresh();
 

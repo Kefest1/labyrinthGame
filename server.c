@@ -8,7 +8,9 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
+int killThreads = 0;
 
 #define LABYRINTH_WIDTH  51
 #define LABYRINTH_HEIGHT 25
@@ -152,13 +154,12 @@ void prepareServer(void) {
 
 void *inputListener(__attribute__((unused)) void *ptr) {
     int inputChar;
-
+    noecho();
     do {
         inputChar = getch();
         int *arr = getRandomFreePosition();
         int x = arr[0];
         int y = arr[1];
-
         if (inputChar == 'c') {
             fieldStatus[x][y] = ONE_COIN;
             mvwprintw(win, x, y, "c");
@@ -172,13 +173,19 @@ void *inputListener(__attribute__((unused)) void *ptr) {
             mvwprintw(win, x, y, "T");
         }
 
+        if (inputChar == 'q' || inputChar == 'Q') {
+            printf("Finalizing");
+            free(arr);
+            finalize();
+        }
+
         wrefresh(win);
         refresh();
 
         free(arr);
-    } while (inputChar != 'q' && inputChar != 'Q');
+    } while (1);
 
-    finalize();
+    // finalize();
 
 
     return NULL;
@@ -188,7 +195,9 @@ void erasePlayer(int index) {
     int x, y;
     x = players->players[index].xPosition;
     y = players->players[index].yPosition;
-    // printf("%d %d", x, y);
+
+    fieldStatus[x][y] = FREE_BLOCK;
+
     mvwprintw(win, x, y, " ");
     wrefresh(win);
     refresh();
@@ -199,28 +208,33 @@ void *playerActionListener(void *ptr) {
     for (int i = 0; i < MAX_PLAYER_COUNT; i++)
         playerCommunicator[i]->currentlyMoving = 0;
 
-    sleep(4u);
+    sleep(2u);
     inf_loop:
 
     while (players->totalPlayers >= MINIMAL_PLAYERS_TO_PLAY) {
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
-//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 playerCommunicator[i]->currentlyMoving = 1;
 
-//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                 sleep(ROUND_DURATION_SECONDS);
 
-//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 if (playerCommunicator[i]->hasJustDisconnected == 1) {
                     erasePlayer(i);
                     playerCommunicator[i]->playerStatus = NOT_CONNECTED;
+
+                    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
+
                     playerSharedConnector->totalPlayerCount--;
                     playerSharedConnector->freeIndex = findFreeIndex();
+
+                    pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
                     clearPlayerPosition(i);
                     clearPlayerProcessID(i);
@@ -229,7 +243,7 @@ void *playerActionListener(void *ptr) {
                     clearPlayerBroughtCoins(i);
 
                     //
-//                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                     continue;
                 }
@@ -242,7 +256,7 @@ void *playerActionListener(void *ptr) {
 
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
 
-//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                 movePlayer(i, moveDir);
                 mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
@@ -278,6 +292,8 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
             if (indexAt == -1) {
                 puts("Player couldn't connect (the game is full)");
+                pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
+
                 continue;
             }
 
@@ -436,14 +452,19 @@ int main(void) {
     pthread_create(&inputListenerThread, NULL, inputListener, NULL);
     pthread_create(&playerKeyListener, NULL, playerActionListener, NULL);
 
-    sleep(DEBUG_SLEEP);
+    pthread_join(playerListenerThread, NULL);
+    pthread_join(inputListenerThread, NULL);
+    pthread_join(playerKeyListener, NULL);
+
+    // sleep(DEBUG_SLEEP);
 
     endwin();
-    finalize();
+    // finalize();
     return 0;
 }
 
 void finalize(void) {
+    // pthread_t playerListenerThread, inputListenerThread, playerKeyListener;
     free(players);
 
     pthread_mutex_destroy(&playerSharedConnector->pthreadMutex);
@@ -457,6 +478,13 @@ void finalize(void) {
     }
 
     endwin();
+
+
+
+    pthread_kill(playerListenerThread, SIGKILL);
+    pthread_kill(inputListenerThread, SIGKILL);
+    pthread_kill(playerKeyListener, SIGKILL);
+
 }
 
 int getSharedBlock(char *filename, size_t size, int index) {
@@ -540,7 +568,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     field_status_t fieldStatusTo = fieldStatus[xTo][yTo];
 
     if (fieldStatusTo == FREE_BLOCK) {
-        mvwprintw(win, 0, 0, "Dupa");
         if (isOnCampsite) {
             fieldStatus[xFrom][yFrom] = CAMPSITE;
             mvwprintw(win, xFrom, yFrom, "A");
@@ -573,11 +600,13 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
         updatePlayerPosition(index);
         fillSharedMap(index);
+        updateRoundNumber();
 
         return 0;
     }
     if (fieldStatusTo == WALL) {
         fillSharedMap(index);
+        updateRoundNumber();
         return 1; // Broadcast communicat
     }
     if (fieldStatusTo == LARGE_TREASURE) {
@@ -610,6 +639,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->coinsPicked += LARGE_TREASURE_COINS;
         updatePlayerCarriedCoins(index);
 
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == TREASURE) {
@@ -642,7 +673,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsPicked += TREASURE_COINS;
         updatePlayerCarriedCoins(index);
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == ONE_COIN) {
@@ -674,7 +706,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsPicked += ONE_COIN_COINS;
         updatePlayerCarriedCoins(index);
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == BUSHES) {
@@ -699,7 +732,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
             mvwprintw(win, xFrom, yFrom, " ");
         }
         mvwprintw(win, xTo, yTo, "%c", ('1' + index));
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == CAMPSITE) {
@@ -727,7 +761,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
         playerCommunicator[index]->coinsBrought += playerCommunicator[index]->coinsPicked;
         playerCommunicator[index]->coinsPicked = 0;
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == DROPPED_TREASURE) {
@@ -759,7 +794,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         playerCommunicator[index]->currentlyAtY = yTo;
 
         playerCommunicator[index]->coinsPicked += droppedTreasureCoins;
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == PLAYER_1) {
@@ -775,7 +811,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         refresh();
 
         fillSharedMap(index);
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == PLAYER_2) {
@@ -792,7 +829,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         refresh();
 
         fillSharedMap(index);
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == PLAYER_3) {
@@ -808,7 +846,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         refresh();
 
         fillSharedMap(index);
-
+        fillSharedMap(index);
+        updateRoundNumber();
         return 0;
     }
     if (fieldStatusTo == PLAYER_4) {
@@ -825,10 +864,17 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
         fillSharedMap(index);
 
+        fillSharedMap(index);
+        updateRoundNumber();
+
         return 0;
     }
     if (fieldStatusTo == WILD_BEAST) {
-        // TODO Wild beast
+
+        fillSharedMap(index);
+        updateRoundNumber();
+
+        return 0;
     }
 
     players->players[index].xPosition = xTo;
