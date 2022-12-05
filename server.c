@@ -184,7 +184,6 @@ void *inputListener(__attribute__((unused)) void *ptr) {
                 int *arrBeast = getRandomFreePosition();
                 int xBeast = arrBeast[0], yBeast = arrBeast[1];
 
-
                 mvwprintw(win, xBeast, yBeast, "*");
                 fieldStatus[xBeast][yBeast] = WILD_BEAST;
 
@@ -201,9 +200,6 @@ void *inputListener(__attribute__((unused)) void *ptr) {
 
         free(arr);
     } while (1);
-
-    // finalize();
-
 
     return NULL;
 }
@@ -240,7 +236,7 @@ void *playerActionListener(void *ptr) {
 
                 sleep(ROUND_DURATION_SECONDS);
 
-//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 if (playerCommunicator[i]->hasJustDisconnected == 1) {
                     erasePlayer(i);
@@ -260,11 +256,11 @@ void *playerActionListener(void *ptr) {
                     clearPlayerBroughtCoins(i);
 
                     //
-//                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                     continue;
                 }
-
+                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
                 mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i + 1,
                          playerCommunicator[i]->playerInput);
 
@@ -280,11 +276,11 @@ void *playerActionListener(void *ptr) {
                 debugging_counter++;
                 wrefresh(win);
                 refresh();
-//                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 playerCommunicator[i]->currentlyMoving = 0;
 
-//                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
             }
 
             sleep(BETWEEN_ROUNDS_SLEEP);
@@ -363,6 +359,7 @@ _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
             players->totalPlayers += 1;
             fillSharedMap(indexAt);
             playerSharedConnector->totalPlayerCount++;
+
             pthread_mutex_unlock(&playerSharedConnector->joiningMutex);
 
             free(arr);
@@ -415,6 +412,7 @@ void createCommunicator(void) {
         pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
         pthread_mutex_init(&(playerCommunicator[i]->connectorMutex), &mutexattr);
+        pthread_mutex_init(&(playerCommunicator[i]->yourTurnMutex), &mutexattr);
         pthread_mutexattr_destroy(&mutexattr);
 
         (*(playerCommunicator + i))->playerIndex = i;
@@ -467,6 +465,7 @@ void displayMap(void) {
 
 void moveBeast(int index) {
     srand((unsigned int) time(NULL));
+
 
     int xBeast = players->wildBeast[index].xPosition;
     int yBeast = players->wildBeast[index].yPosition;
@@ -719,7 +718,6 @@ void moveBeast(int index) {
 
 
 
-    mvwprintw(win, 4, 65, "%d %d", xBeast, yBeast);
     refresh();
     wrefresh(win);
 
@@ -738,7 +736,6 @@ void moveBeast(int index) {
 
 
     if (fieldStatusTo == WALL) {
-        mvwprintw(win, 0, 0, "BeastMoves WaLL");
         for (int i = 0; i < MAX_PLAYERS; i++)
             if (playerCommunicator[i]->playerStatus == CONNECTED)
                 fillSharedMap(i);
@@ -747,7 +744,6 @@ void moveBeast(int index) {
         return;
 
     } else {
-        mvwprintw(win, 0, 20, "BeastMoves FREE");
 
         if (beastMoveDir == MOVE_LEFT) {
             players->wildBeast[index].yPosition--;
@@ -779,9 +775,6 @@ void moveBeast(int index) {
 
         wrefresh(win);
         refresh();
-
-        fillSharedMap(index);
-        updateRoundNumber();
 
         for (int i = 0; i < MAX_PLAYERS; i++)
             if (playerCommunicator[i]->playerStatus == CONNECTED)
@@ -1256,7 +1249,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
 //                 p1 -> p2
 void collision(int index1, int index2) {
-    mvwprintw(win, 1, 1, "Collision has occured");
     int xFrom1, yFrom1, xTo1, yTo1, xFrom2, yFrom2, xTo2, yTo2;
 
     xFrom1 = players->players[index1].xPosition;
@@ -1473,6 +1465,13 @@ void fillSharedMap(int index) {
         xCorner = 0;
     if (yCorner < 0)
         yCorner = 0;
+
+
+    while(xCorner + 4 > LABYRINTH_HEIGHT - 1)
+        xCorner--;
+
+    while(yCorner + 4 > LABYRINTH_WIDTH - 1)
+        yCorner--;
 
     for (int i = 0; i < RANGE_OF_VIEW; i++)
         for (int j = 0; j < RANGE_OF_VIEW; j++)

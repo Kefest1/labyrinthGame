@@ -206,17 +206,6 @@ int establishConnection(void) {
 }
 
 void printMapAround(void) {
-    if (mapCleanerX != -1) {
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 5; j++) {
-                mvwprintw(map, mapCleanerX, mapCleanerY, " ");
-            }
-        }
-    }
-
-    mapCleanerX = playerCommunicator->currentlyAtX - 2;
-    mapCleanerY = playerCommunicator->currentlyAtY - 2;
-
 
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
@@ -264,6 +253,7 @@ void createMessageWindow(void) {
     box(messagesWindow, 0, 0);
     wrefresh(messagesWindow);
 }
+
 int isPrintable = 0;
 int debug = 1;
 
@@ -316,30 +306,29 @@ void *gameMove(void *ptr) {
 
     input = getDirection(input);
 
+    playerCommunicator->playerInput = input;
     pthread_mutex_unlock(&playerCommunicator->connectorMutex);
-
 
     mvwprintw(messagesWindow, debug, 1, "Your input: %d   ", input);
     wrefresh(messagesWindow);
     refresh();
 
-    playerCommunicator->playerInput = input;
     while (1) {
-//        pthread_mutex_lock(&playerCommunicator->connectorMutex);
+        pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
         if (playerCommunicator->currentlyMoving == 0) {
 //            pthread_mutex_unlock(&playerCommunicator->connectorMutex);
             break;
         }
 
-//        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+        pthread_mutex_unlock(&playerCommunicator->connectorMutex);
     }
 
 //    pthread_mutex_lock(&playerCommunicator->connectorMutex);
 
     printMapAround();
 
-//    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
+    pthread_mutex_unlock(&playerCommunicator->connectorMutex);
 
     mvwprintw(messagesWindow, debug, 1, "Wait for your turn");
     wrefresh(messagesWindow);

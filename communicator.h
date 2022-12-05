@@ -31,6 +31,8 @@ typedef struct {
 
 struct communicator_t {
     pthread_mutex_t connectorMutex;
+    pthread_mutex_t yourTurnMutex;
+
 
     int playerInput;
     // If not given -> same as previous
