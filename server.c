@@ -221,33 +221,28 @@ void *playerActionListener(void *ptr) {
     for (int i = 0; i < MAX_PLAYER_COUNT; i++)
         playerCommunicator[i]->currentlyMoving = 0;
 
-    sleep(2u);
+    // sleep(2u);
     inf_loop:
 
     while (players->totalPlayers >= MINIMAL_PLAYERS_TO_PLAY) {
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
-                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 playerCommunicator[i]->currentlyMoving = 1;
-
-                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
+                sem_post(&playerCommunicator[i]->communicatorSemaphore1);
 
                 sleep(ROUND_DURATION_SECONDS);
 
-                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 if (playerCommunicator[i]->hasJustDisconnected == 1) {
                     erasePlayer(i);
                     playerCommunicator[i]->playerStatus = NOT_CONNECTED;
 
-//                    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
                     playerSharedConnector->totalPlayerCount--;
                     playerSharedConnector->freeIndex = findFreeIndex();
 
-                    pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
                     clearPlayerPosition(i);
                     clearPlayerProcessID(i);
@@ -256,11 +251,9 @@ void *playerActionListener(void *ptr) {
                     clearPlayerBroughtCoins(i);
 
                     //
-                    pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                     continue;
                 }
-                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
                 mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i + 1,
                          playerCommunicator[i]->playerInput);
 
@@ -269,18 +262,16 @@ void *playerActionListener(void *ptr) {
 
                 player_move_dir moveDir = getMoveDirFromInput(playerCommunicator[i]->playerInput);
 
-                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
 
                 movePlayer(i, moveDir);
+                sem_post(&playerCommunicator[i]->communicatorSemaphore2);
                 mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
                 debugging_counter++;
                 wrefresh(win);
                 refresh();
-                pthread_mutex_lock(&playerCommunicator[i]->connectorMutex);
 
                 playerCommunicator[i]->currentlyMoving = 0;
 
-                pthread_mutex_unlock(&playerCommunicator[i]->connectorMutex);
             }
 
             sleep(BETWEEN_ROUNDS_SLEEP);
@@ -302,70 +293,60 @@ void *playerActionListener(void *ptr) {
 _Noreturn void *playerConnector(__attribute__((unused)) void *ptr) {
 
     while (1) {
-        pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
-        if (playerSharedConnector->playerConnected == 1) {
-            playerSharedConnector->playerConnected = 0;
+        sem_wait(&playerSharedConnector->connectorSemaphore1);
 
-            int indexAt = findFreeIndex();
+        int indexAt = findFreeIndex();
 
-            if (indexAt == -1) {
-                puts("Player couldn't connect (the game is full)");
-                pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
-                continue;
-            }
+        playerCommunicator[indexAt]->playerStatus = CONNECTED;
 
-            playerCommunicator[indexAt]->playerStatus = CONNECTED;
+        playerSharedConnector->freeIndex = findFreeIndex();
 
-            playerSharedConnector->freeIndex = findFreeIndex();
+        int *arr = getRandomFreePosition();
 
-            int *arr = getRandomFreePosition();
+        fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
 
-            fieldStatus[arr[0]][arr[1]] = getStatusFromIndex(indexAt);
+        playerCommunicator[indexAt]->currentlyAtX = arr[0];
+        playerCommunicator[indexAt]->currentlyAtY = arr[1];
 
-            playerCommunicator[indexAt]->currentlyAtX = arr[0];
-            playerCommunicator[indexAt]->currentlyAtY = arr[1];
+        players->players[indexAt].xPosition = arr[0];
+        players->players[indexAt].yPosition = arr[1];
 
-            players->players[indexAt].xPosition = arr[0];
-            players->players[indexAt].yPosition = arr[1];
+        players->players[indexAt].xStartPosition = arr[0];
+        players->players[indexAt].yStartPosition = arr[1];
 
-            players->players[indexAt].xStartPosition = arr[0];
-            players->players[indexAt].yStartPosition = arr[1];
+        playerCommunicator[indexAt]->coinsPicked = 0;
+        playerCommunicator[indexAt]->coinsBrought = 0;
+        playerCommunicator[indexAt]->deaths = 0;
 
-            playerCommunicator[indexAt]->coinsPicked = 0;
-            playerCommunicator[indexAt]->coinsBrought = 0;
-            playerCommunicator[indexAt]->deaths = 0;
+        updatePlayerDeathsCount(indexAt);
+        updatePlayerCarriedCoins(indexAt);
+        updatePlayerBroughtCoins(indexAt);
 
-            updatePlayerDeathsCount(indexAt);
-            updatePlayerCarriedCoins(indexAt);
-            updatePlayerBroughtCoins(indexAt);
+        playerCommunicator[indexAt]->isCollision = 0;
+        playerCommunicator[indexAt]->locked = 0;
+        playerCommunicator[indexAt]->hasJustDisconnected = 0;
 
-            playerCommunicator[indexAt]->isCollision = 0;
-            playerCommunicator[indexAt]->locked = 0;
-            playerCommunicator[indexAt]->hasJustDisconnected = 0;
+        updatePlayerProcessID(indexAt, playerCommunicator[indexAt]->playerProcessID);
+        updatePlayerPosition(indexAt);
 
-            updatePlayerProcessID(indexAt, playerCommunicator[indexAt]->playerProcessID);
-            updatePlayerPosition(indexAt);
+        paintPlayer(indexAt, arr[0], arr[1]);
 
-            paintPlayer(indexAt, arr[0], arr[1]);
+        wrefresh(win);
+        refresh();
 
-            wrefresh(win);
-            refresh();
+        players->players[indexAt].deaths = 0;
+        players->players[indexAt].coinsCarried = 0;
+        players->players[indexAt].coinsBrought = 0;
+        players->totalPlayers += 1;
+        fillSharedMap(indexAt);
+        playerSharedConnector->totalPlayerCount++;
 
-            players->players[indexAt].deaths = 0;
-            players->players[indexAt].coinsCarried = 0;
-            players->players[indexAt].coinsBrought = 0;
-            players->totalPlayers += 1;
-            fillSharedMap(indexAt);
-            playerSharedConnector->totalPlayerCount++;
 
-            pthread_mutex_unlock(&playerSharedConnector->joiningMutex);
+        free(arr);
 
-            free(arr);
-        }
 
-        pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
     }
 }
 
@@ -377,15 +358,8 @@ void createConnector(void) {
     playerSharedConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
-
-    pthread_mutex_init(&playerSharedConnector->pthreadMutex, &mutexattr);
-    pthread_mutex_init(&playerSharedConnector->joiningMutex, &mutexattr);
-
-    pthread_mutexattr_destroy(&mutexattr);
-
+    sem_init(&playerSharedConnector->connectorSemaphore1, 1, 0);
+    sem_init(&playerSharedConnector->connectorSemaphore2, 1, 0);
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
@@ -407,13 +381,10 @@ void createCommunicator(void) {
                 (struct communicator_t *) shmat(sharedBlockId, NULL, 0);
 
 
-        pthread_mutexattr_t mutexattr;
-        pthread_mutexattr_init(&mutexattr);
-        pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
+        sem_init(&(*(playerCommunicator + i))->communicatorSemaphore1, 1, 0);
+        sem_init(&(*(playerCommunicator + i))->communicatorSemaphore2, 1, 0);
+        sem_init(&(*(playerCommunicator + i))->communicatorSemaphore3, 1, 0);
 
-        pthread_mutex_init(&(playerCommunicator[i]->connectorMutex), &mutexattr);
-        pthread_mutex_init(&(playerCommunicator[i]->yourTurnMutex), &mutexattr);
-        pthread_mutexattr_destroy(&mutexattr);
 
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
@@ -814,12 +785,10 @@ void finalize(void) {
     // pthread_t playerListenerThread, inputListenerThread, playerKeyListener;
     free(players);
 
-    pthread_mutex_destroy(&playerSharedConnector->pthreadMutex);
     int conectorIndex = getSharedBlock(FILE_CONNECTOR, sizeof(player_connector_t), 0);
     shmctl(conectorIndex, IPC_RMID, NULL);
 
     for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
-        pthread_mutex_destroy(&(playerCommunicator[i]->connectorMutex));
         int controllerIndex = getSharedBlock(FILE_COMMUNICATOR, sizeof(struct communicator_t), i);
         shmctl(controllerIndex, IPC_RMID, NULL);
     }
@@ -875,11 +844,9 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
 
 
-    pthread_mutex_lock(&playerSharedConnector->pthreadMutex);
 
     playerSharedConnector->rounds++;
 
-    pthread_mutex_unlock(&playerSharedConnector->pthreadMutex);
 
     int willMove;
     int isOnBushes = fieldStatusFrom == getStatusFromIndexBushed(index);

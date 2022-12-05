@@ -14,7 +14,7 @@
 #define MAX_PLAYERS MAX_PLAYER_COUNT
 
 #define RANGE_OF_VIEW 5
-#define ROUND_DURATION_SECONDS 1u
+#define ROUND_DURATION_SECONDS 4u
 #define ROUND_DURATION_MILLI_SECONDS (1000u * ROUND_DURATION_SECONDS)
 
 #define BETWEEN_ROUNDS_SLEEP 1u
@@ -30,9 +30,9 @@ typedef struct {
 // Shared between one player and server //
 
 struct communicator_t {
-    pthread_mutex_t connectorMutex;
-    pthread_mutex_t yourTurnMutex;
-
+    sem_t communicatorSemaphore1;
+    sem_t communicatorSemaphore2;
+    sem_t communicatorSemaphore3;
 
     int playerInput;
     // If not given -> same as previous

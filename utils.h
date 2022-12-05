@@ -17,9 +17,8 @@
 #define ONE_COIN_COINS 1
 
 #include <pthread.h>
+#include <semaphore.h>
 
-//pthread_mutex playerConnectionMutex;
-//pthread_mutex playerControllerMutex;
 
 typedef enum {
     NOT_CONNECTED = 0,
@@ -33,8 +32,8 @@ typedef enum {
 
 // Shared between player processes //
 typedef struct {
-    pthread_mutex_t pthreadMutex;
-    pthread_mutex_t joiningMutex;
+    sem_t connectorSemaphore1;
+    sem_t connectorSemaphore2;
 
     _Bool playerConnected;
     int totalPlayerCount;
