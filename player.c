@@ -8,8 +8,12 @@
 #include <stdlib.h>
 #include <ncurses.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define QUIT_EXIT_CODE 1
+
+#define TO_MANY_PLAYERS_ERROR -1
+#define SERVER_NOT_STARTED -2
 
 int getRandomInputDebug(void);
 
@@ -24,6 +28,7 @@ struct communicator_t *playerCommunicator;
 
 pthread_t keyListenerThread;
 pthread_t roundUpdaterThread;
+pthread_t serverListenerThread;
 
 WINDOW *messagesWindow;
 WINDOW *map;
@@ -165,10 +170,14 @@ void createAndDisplayStatistics(void) {
 }
 
 int establishConnection(void) {
+    errno = 0;
 
     key_t key = ftok(FILE_CONNECTOR, 0);
-    int sharedBlockId = shmget(key, sizeof(player_connector_t),
-                               IPC_CREAT);
+    int sharedBlockId = shmget(key, sizeof(player_connector_t), 0);
+
+    if (errno == ENOENT || sharedBlockId < 0) {
+        return SERVER_NOT_STARTED;
+    }
 
     playerConnector =
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
@@ -179,6 +188,7 @@ int establishConnection(void) {
 
 
     if (playerConnector->totalPlayerCount == MAX_PLAYER_COUNT) {
+        return TO_MANY_PLAYERS_ERROR;
     }
     else {
         playerID = playerConnector->freeIndex;
@@ -256,17 +266,26 @@ int getDirection(int input) {
     return KEY_LEFT;
 }
 
+void *serverListener(void *ptr) {
+    sem_wait(&playerConnector->isServerUpSemaphore);
+
+    finalize();
+
+    pthread_kill(keyListenerThread, SIGKILL);
+    return NULL;
+}
+
 void *gameMove(void *ptr) {
+    pthread_create(&serverListenerThread, NULL, &serverListener, NULL);
+
     inf_loop:
-
-
-
 
     sem_wait(&playerCommunicator->communicatorSemaphore1);
 
 
     if (!isPrintable)
         printMapAround(), isPrintable = 1;
+
 
 
     mvwprintw(messagesWindow, debug, 1, "Give input        ");
@@ -338,12 +357,22 @@ void finalize(void) {
 
 int main(void) {
 
+    int x = establishConnection();
+    if (x == TO_MANY_PLAYERS_ERROR) {
+        werase(messagesWindow), werase(map), endwin();
+        puts("To many players");
+        return TO_MANY_PLAYERS_ERROR * -1;
+    }
+    if (x == SERVER_NOT_STARTED) {
+        werase(messagesWindow), werase(map), endwin();
+        puts("Server has not started yet");
+        return SERVER_NOT_STARTED * -1;
+    }
+
     setGameUp();
     createMessageWindow();
     createMapWindow();
 
-    if (establishConnection() == -1)
-        return puts("Failed to connect.\nServer is yet to start"), 1;
     createAndDisplayStatistics();
 
     pthread_create(&keyListenerThread, NULL, &gameMove, NULL);

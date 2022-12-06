@@ -35,12 +35,16 @@ typedef struct {
     sem_t connectorSemaphore1;
     sem_t connectorSemaphore2;
 
+    sem_t isServerUpSemaphore;
+
     _Bool playerConnected;
     int totalPlayerCount;
     int freeIndex; // Doesn't matter if max //
     __pid_t serverPid;
 
     int rounds;
+
+    int isUp;
 } player_connector_t;
 
 

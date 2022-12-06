@@ -367,6 +367,9 @@ void createConnector(void) {
 
     sem_init(&playerSharedConnector->connectorSemaphore1, 1, 0);
     sem_init(&playerSharedConnector->connectorSemaphore2, 1, 0);
+
+    sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
+
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
     playerSharedConnector->freeIndex = 0;
@@ -813,6 +816,10 @@ void finalize(void) {
     sem_destroy(&playerSharedConnector->connectorSemaphore2);
 
     int conectorIndex = getSharedBlock(FILE_CONNECTOR, sizeof(player_connector_t), 0);
+
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+        sem_post(&playerSharedConnector->isServerUpSemaphore);
+
     shmctl(conectorIndex, IPC_RMID, NULL);
 
     for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
@@ -820,13 +827,12 @@ void finalize(void) {
         sem_destroy(&playerCommunicator[i]->communicatorSemaphore2);
         sem_destroy(&playerCommunicator[i]->communicatorSemaphore3);
 
-
         int controllerIndex = getSharedBlock(FILE_COMMUNICATOR, sizeof(struct communicator_t), i);
         shmctl(controllerIndex, IPC_RMID, NULL);
     }
 
     endwin();
-
+    sem_destroy(&playerSharedConnector->isServerUpSemaphore);
 
 
     pthread_kill(playerListenerThread, SIGKILL);
