@@ -24,8 +24,6 @@ int wildBeastCount = 0;
 
 #define MINIMAL_PLAYERS_TO_PLAY 1
 
-int debugging_counter = 0;
-
 
 field_status_t fieldStatus[LABYRINTH_HEIGHT][LABYRINTH_WIDTH];
 
@@ -192,6 +190,7 @@ void *inputListener(__attribute__((unused)) void *ptr) {
                 players->wildBeast[wildBeastCount].yPosition = yBeast;
                 sem_init(&players->wildBeast[wildBeastCount].semaphore, 1, 0);
 
+
                 int *temp = (int *) malloc(1 * sizeof(int));
                 *temp = wildBeastCount;
 
@@ -263,8 +262,8 @@ void *playerActionListener(void *ptr) {
 
                     continue;
                 }
-                mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i + 1,
-                         playerCommunicator[i]->playerInput);
+//                mvprintw(17 + debugging_counter++, 60, "Player %d gave input: %d", i + 1,
+//                         playerCommunicator[i]->playerInput);
 
                 wrefresh(win);
                 refresh();
@@ -274,8 +273,8 @@ void *playerActionListener(void *ptr) {
 
                 movePlayer(i, moveDir);
                 sem_post(&playerCommunicator[i]->communicatorSemaphore2);
-                mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
-                debugging_counter++;
+//                mvprintw(17 + debugging_counter++, 60, "Player %d Move direction: %d", i + 1, moveDir);
+//                debugging_counter++;
                 wrefresh(win);
                 refresh();
 
@@ -395,6 +394,15 @@ void createCommunicator(void) {
         sem_init(&(*(playerCommunicator + i))->communicatorSemaphore2, 1, 0);
         sem_init(&(*(playerCommunicator + i))->communicatorSemaphore3, 1, 0);
 
+        pthread_mutexattr_t mutexattr;
+        pthread_mutexattr_init(&mutexattr);
+        pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
+
+        pthread_mutex_init(&(*(playerCommunicator + i))->mutexDataSafety, &mutexattr);
+
+        pthread_mutexattr_destroy(&mutexattr);
+
+//        mutexDataSafety
 
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
@@ -443,7 +451,7 @@ void displayMap(void) {
 }
 
 void *wildBeastFunction(void *ptr) {
-    int index = *((int *)(ptr));
+    int index = *((int *) (ptr));
 
     do {
         sem_wait(&players->wildBeast[index].semaphore);
@@ -804,7 +812,7 @@ int main(void) {
     // sleep(DEBUG_SLEEP);
 
     endwin();
-    // finalize();
+//     finalize();
     return 0;
 }
 
@@ -1244,6 +1252,8 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     wrefresh(win);
     refresh();
 
+
+
     fillSharedMap(index);
 
     return 0;
@@ -1298,11 +1308,14 @@ void collision(int index1, int index2) {
     int droppedTreasureVal =
             players->players[index1].coinsCarried + players->players[index2].coinsCarried;
 
-    int freeTreasure = getFreeTreasurePos();
+    if (droppedTreasureVal) {
+        int freeTreasure = getFreeTreasurePos();
 
-    droppedTreasure[freeTreasure].x = xTo2;
-    droppedTreasure[freeTreasure].y = yTo2;
-    droppedTreasure[freeTreasure].coins = droppedTreasureVal;
+        droppedTreasure[freeTreasure].x = xTo2;
+        droppedTreasure[freeTreasure].y = yTo2;
+        droppedTreasure[freeTreasure].coins = droppedTreasureVal;
+        droppedTreasureStatus[freeTreasure] = EXIST;
+    }
 
     players->players[index1].coinsCarried = 0;
     players->players[index2].coinsCarried = 0;
@@ -1316,12 +1329,25 @@ void collision(int index1, int index2) {
         wrefresh(win);
         refresh();
     }
+    else {
+        fieldStatus[xFrom1][yFrom1] = FREE_BLOCK;
+        mvwprintw(win, xFrom1, yFrom1, "#");
+        wrefresh(win);
+        refresh();
+    }
+
     if (isOnBush2) {
         fieldStatus[xFrom2][yFrom2] = BUSHES;
         mvwprintw(win, xFrom2, yFrom2, "#");
         wrefresh(win);
         refresh();
+    } else {
+        fieldStatus[xFrom2][yFrom2] = FREE_BLOCK;
+        mvwprintw(win, xFrom2, yFrom2, "#");
+        wrefresh(win);
+        refresh();
     }
+
     if (isOnCamp) {
         fieldStatus[xFrom2][yFrom2] = CAMPSITE;
         mvwprintw(win, xFrom2, yFrom2, "A");
@@ -1329,7 +1355,8 @@ void collision(int index1, int index2) {
         refresh();
     }
 
-    fieldStatus[xFrom2][yFrom2] = DROPPED_TREASURE;
+    if (droppedTreasureVal)
+        fieldStatus[xFrom2][yFrom2] = DROPPED_TREASURE;
 
     fieldStatus[xTo1][yTo1] = getStatusFromIndex(index1);
     mvwprintw(win, xTo1, yTo1, "%c", index1 + '1');
@@ -1416,14 +1443,14 @@ field_status_t getStatusFromIndex(int index) {
     return PLAYER_4;
 }
 
-int getIndexFromStatus(field_status_t fieldStatus) {
-    if (fieldStatus == PLAYER_1 || fieldStatus == PLAYER_1_ON_BUSH)
+int getIndexFromStatus(field_status_t fieldStatusOne) {
+    if (fieldStatusOne == PLAYER_1 || fieldStatusOne == PLAYER_1_ON_BUSH)
         return 0;
-    if (fieldStatus == PLAYER_2 || fieldStatus == PLAYER_2_ON_BUSH)
+    if (fieldStatusOne == PLAYER_2 || fieldStatusOne == PLAYER_2_ON_BUSH)
         return 1;
-    if (fieldStatus == PLAYER_3 || fieldStatus == PLAYER_3_ON_BUSH)
+    if (fieldStatusOne == PLAYER_3 || fieldStatusOne == PLAYER_3_ON_BUSH)
         return 2;
-    if (fieldStatus == PLAYER_4 || fieldStatus == PLAYER_4_ON_BUSH)
+    if (fieldStatusOne == PLAYER_4 || fieldStatusOne == PLAYER_4_ON_BUSH)
         return 3;
 
     return -1;
@@ -1458,6 +1485,8 @@ player_move_dir getMoveDirFromInput(int input) {
 }
 
 void fillSharedMap(int index) {
+    pthread_mutex_lock(&playerCommunicator[index]->mutexDataSafety);
+
     int xPos = players->players[index].xPosition;
     int yPos = players->players[index].yPosition;
 
@@ -1480,6 +1509,7 @@ void fillSharedMap(int index) {
         for (int j = 0; j < RANGE_OF_VIEW; j++)
             playerCommunicator[index]->mapAround.aroundPlayers[i][j] = fieldStatus[xCorner + i][yCorner + j];
 
+    pthread_mutex_unlock(&playerCommunicator[index]->mutexDataSafety);
 }
 
 int getFreeTreasurePos(void) {

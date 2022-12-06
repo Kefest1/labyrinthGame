@@ -34,6 +34,7 @@ struct communicator_t {
     sem_t communicatorSemaphore2;
     sem_t communicatorSemaphore3;
 
+    pthread_mutex_t mutexDataSafety;
     int playerInput;
     // If not given -> same as previous
     // If wrong -> nothing will happen

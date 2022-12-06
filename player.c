@@ -16,7 +16,7 @@
 #define SERVER_NOT_STARTED -2
 
 int getRandomInputDebug(void);
-
+void printMapAround(void);
 // TODO FAIL IF DOESN'T EXIST
 
 int input1;
@@ -135,6 +135,9 @@ void *updateRound(void *ptr) {
     if (playerConnector->rounds != roundNumber) {
         mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", playerConnector->rounds);
         roundNumber = playerConnector->rounds;
+
+        printMapAround();
+
         if (roundNumber)
             updateStatistics();
     }
@@ -282,11 +285,8 @@ void *gameMove(void *ptr) {
 
     sem_wait(&playerCommunicator->communicatorSemaphore1);
 
-
     if (!isPrintable)
         printMapAround(), isPrintable = 1;
-
-
 
     mvwprintw(messagesWindow, debug, 1, "Give input        ");
     wrefresh(messagesWindow);
