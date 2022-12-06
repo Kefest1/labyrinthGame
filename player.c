@@ -131,6 +131,7 @@ int checkIfConnectorExist(void) {
 void *updateRound(void *ptr) {
     inf_loop:
 
+    sem_wait(&playerConnector->roundUpdateSemaphore);
 
     if (playerConnector->rounds != roundNumber) {
         mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", playerConnector->rounds);

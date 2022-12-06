@@ -37,6 +37,8 @@ typedef struct {
 
     sem_t isServerUpSemaphore;
 
+    sem_t roundUpdateSemaphore;
+
     _Bool playerConnected;
     int totalPlayerCount;
     int freeIndex; // Doesn't matter if max //

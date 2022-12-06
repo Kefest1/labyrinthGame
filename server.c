@@ -56,6 +56,7 @@ int roundNumber = 0;
 // </Statistics here:> //
 
 void updateRoundNumber(void) {
+    sem_post(&playerSharedConnector->roundUpdateSemaphore);
     mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", ++roundNumber);
 }
 
@@ -367,6 +368,8 @@ void createConnector(void) {
     sem_init(&playerSharedConnector->connectorSemaphore1, 1, 0);
     sem_init(&playerSharedConnector->connectorSemaphore2, 1, 0);
 
+    sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
+    sem_init(&playerSharedConnector->roundUpdateSemaphore, 1, 0);
     sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
 
     playerSharedConnector->totalPlayerCount = 0;
@@ -822,6 +825,7 @@ void finalize(void) {
 
     sem_destroy(&playerSharedConnector->connectorSemaphore1);
     sem_destroy(&playerSharedConnector->connectorSemaphore2);
+    sem_destroy(&playerSharedConnector->roundUpdateSemaphore);
 
     int conectorIndex = getSharedBlock(FILE_CONNECTOR, sizeof(player_connector_t), 0);
 
