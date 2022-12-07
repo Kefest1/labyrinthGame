@@ -56,7 +56,10 @@ int roundNumber = 0;
 // </Statistics here:> //
 
 void updateRoundNumber(void) {
-    sem_post(&playerSharedConnector->roundUpdateSemaphore);
+    for (int i = 0; i < MAX_PLAYERS; i++)
+        if (playerCommunicator[i]->playerStatus == CONNECTED)
+            sem_post(&playerCommunicator[i]->updateSemaphore);
+
     mvprintw(xCaptionStartLoc + 2, yCaptionStartLoc, "Round number: %d", ++roundNumber);
 }
 
@@ -396,6 +399,7 @@ void createCommunicator(void) {
         sem_init(&(*(playerCommunicator + i))->communicatorSemaphore1, 1, 0);
         sem_init(&(*(playerCommunicator + i))->communicatorSemaphore2, 1, 0);
         sem_init(&(*(playerCommunicator + i))->communicatorSemaphore3, 1, 0);
+        sem_init(&(*(playerCommunicator + i))->updateSemaphore, 1, 0);
 
         pthread_mutexattr_t mutexattr;
         pthread_mutexattr_init(&mutexattr);
@@ -459,6 +463,7 @@ void *wildBeastFunction(void *ptr) {
     do {
         sem_wait(&players->wildBeast[index].semaphore);
         moveBeast(index);
+        updateRoundNumber();
     } while (1);
 
     return NULL;
@@ -470,7 +475,7 @@ void moveBeast(int index) {
 
     int xBeast = players->wildBeast[index].xPosition;
     int yBeast = players->wildBeast[index].yPosition;
-    mvprintw(8, 65, "%d %d", xBeast, yBeast);
+    // mvprintw(8, 65, "%d %d", xBeast, yBeast);
     field_status_t beastAt = players->wildBeast[index].currentlyOn;
 
     beast_move_dir beastMoveDir;
@@ -838,6 +843,7 @@ void finalize(void) {
         sem_destroy(&playerCommunicator[i]->communicatorSemaphore1);
         sem_destroy(&playerCommunicator[i]->communicatorSemaphore2);
         sem_destroy(&playerCommunicator[i]->communicatorSemaphore3);
+        sem_destroy(&playerCommunicator[i]->updateSemaphore);
 
         int controllerIndex = getSharedBlock(FILE_COMMUNICATOR, sizeof(struct communicator_t), i);
         shmctl(controllerIndex, IPC_RMID, NULL);
@@ -891,8 +897,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     int yFrom = players->players[index].yPosition, yTo;
     field_status_t fieldStatusFrom = fieldStatus[xFrom][yFrom];
 
-
-
     playerSharedConnector->rounds++;
 
 
@@ -903,7 +907,7 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     int goingToCampsite;
 
     if (players->players[index].locked)
-        return players->players[index].locked = 0, 1;
+        return players->players[index].locked = 0, updateRoundNumber(), 1;
 
     if (playerMoveDir == MOVE_UP) {
         xTo = xFrom - 1;
