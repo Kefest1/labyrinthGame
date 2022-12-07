@@ -259,7 +259,6 @@ void createMessageWindow(void) {
 }
 
 int isPrintable = 0;
-int debug = 1;
 
 int getDirection(int input) {
     if (input == 65)
@@ -278,6 +277,7 @@ void *serverListener(void *ptr) {
     finalize();
 
     pthread_kill(keyListenerThread, SIGKILL);
+
     return NULL;
 }
 
@@ -292,7 +292,7 @@ void *gameMove(void *ptr) {
     if (!isPrintable)
         printMapAround(), isPrintable = 1;
 
-    mvwprintw(messagesWindow, debug, 1, "Give input        ");
+    mvwprintw(messagesWindow, 1, 1, "Give input        ");
     wrefresh(messagesWindow);
     refresh();
 
@@ -313,16 +313,15 @@ void *gameMove(void *ptr) {
     playerCommunicator->playerInput = input;
 
 
-    mvwprintw(messagesWindow, debug, 1, "Your input: %d   ", input);
+    mvwprintw(messagesWindow, 1, 1, "Your input: %d   ", input);
     wrefresh(messagesWindow);
     refresh();
-
 
     sem_wait(&playerCommunicator->communicatorSemaphore2);
 
     printMapAround();
 
-    mvwprintw(messagesWindow, debug, 1, "Wait for your turn");
+    mvwprintw(messagesWindow, 1, 1, "Wait for your turn");
     wrefresh(messagesWindow);
     refresh();
 

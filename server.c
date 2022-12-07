@@ -412,7 +412,6 @@ void createCommunicator(void) {
 
         pthread_mutexattr_destroy(&mutexattr);
 
-//        mutexDataSafety
 
         (*(playerCommunicator + i))->playerIndex = i;
         (*(playerCommunicator + i))->playerStatus = NOT_CONNECTED;
@@ -835,6 +834,9 @@ void finalize(void) {
     sem_destroy(&playerSharedConnector->connectorSemaphore2);
     sem_destroy(&playerSharedConnector->roundUpdateSemaphore);
 
+    sem_destroy(&playerSharedConnector->isServerUpSemaphore);
+    sem_destroy(&playerSharedConnector->isGameRunnningSemaphore);
+
     int conectorIndex = getSharedBlock(FILE_CONNECTOR, sizeof(player_connector_t), 0);
 
     for (int i = 0; i < MAX_PLAYER_COUNT; i++)
@@ -854,7 +856,6 @@ void finalize(void) {
 
     endwin();
     sem_destroy(&playerSharedConnector->isServerUpSemaphore);
-
 
     pthread_kill(playerListenerThread, SIGKILL);
 
