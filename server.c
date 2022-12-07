@@ -1245,13 +1245,6 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
 
         return 0;
     }
-    if (fieldStatusTo == WILD_BEAST) {
-
-        fillSharedMap(index);
-        updateRoundNumber();
-
-        return 0;
-    }
 
     players->players[index].xPosition = xTo;
     players->players[index].yPosition = yTo;
