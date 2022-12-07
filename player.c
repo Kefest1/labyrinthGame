@@ -205,6 +205,8 @@ int establishConnection(void) {
     // Already locked! //
     connectToCommunicator(playerID);
 
+    if (playerConnector->totalPlayerCount == 1)
+        sem_post(&playerConnector->isGameRunnningSemaphore);
 
     return 0;
 }
@@ -282,6 +284,7 @@ void *serverListener(void *ptr) {
 void *gameMove(void *ptr) {
     pthread_create(&serverListenerThread, NULL, &serverListener, NULL);
 
+    halfdelay(ROUND_DURATION_TENTH_SECONDS - 2u);
     inf_loop:
 
     sem_wait(&playerCommunicator->communicatorSemaphore1);
@@ -294,6 +297,7 @@ void *gameMove(void *ptr) {
     refresh();
 
     int isq = getch();
+    cbreak();
     if (isq == 'Q' || isq == 'q') {
         mapCleanerX = -1;
         playerCommunicator->hasJustDisconnected = 1;

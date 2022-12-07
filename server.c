@@ -236,6 +236,8 @@ void *playerActionListener(void *ptr) {
     // sleep(2u);
     inf_loop:
 
+    sem_wait(&playerSharedConnector->isGameRunnningSemaphore);
+
     while (players->totalPlayers >= MINIMAL_PLAYERS_TO_PLAY) {
 
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
@@ -254,7 +256,7 @@ void *playerActionListener(void *ptr) {
 
                     playerSharedConnector->totalPlayerCount--;
                     playerSharedConnector->freeIndex = findFreeIndex();
-
+                    players->totalPlayers--;
 
                     clearPlayerPosition(i);
                     clearPlayerProcessID(i);
@@ -286,13 +288,13 @@ void *playerActionListener(void *ptr) {
 
             }
 
-            sleep(BETWEEN_ROUNDS_SLEEP);
-
+            // sleep(BETWEEN_ROUNDS_SLEEP);
         }
 
-        for (int i = 0; i < wildBeastCount; i++) {
+        sem_post(&playerSharedConnector->isGameRunnningSemaphore);
+
+        for (int i = 0; i < wildBeastCount; i++)
             sem_post(&players->wildBeast[i].semaphore);
-        }
     }
 
     goto inf_loop;
@@ -374,6 +376,7 @@ void createConnector(void) {
     sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
     sem_init(&playerSharedConnector->roundUpdateSemaphore, 1, 0);
     sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
+    sem_init(&playerSharedConnector->isGameRunnningSemaphore, 1, 0);
 
     playerSharedConnector->totalPlayerCount = 0;
     playerSharedConnector->playerConnected = 0;
@@ -1246,14 +1249,13 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
         return 0;
     }
 
+
     players->players[index].xPosition = xTo;
     players->players[index].yPosition = yTo;
     updatePlayerPosition(index);
 
     wrefresh(win);
     refresh();
-
-
 
     fillSharedMap(index);
 

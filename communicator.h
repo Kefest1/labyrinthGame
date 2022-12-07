@@ -15,7 +15,7 @@
 
 #define RANGE_OF_VIEW 5
 #define ROUND_DURATION_SECONDS 4u
-#define ROUND_DURATION_MILLI_SECONDS (1000u * ROUND_DURATION_SECONDS)
+#define ROUND_DURATION_TENTH_SECONDS (10u * ROUND_DURATION_SECONDS)
 
 #define BETWEEN_ROUNDS_SLEEP 1u
 #define DEBUG_SLEEP 120u
@@ -35,6 +35,8 @@ struct communicator_t {
     sem_t communicatorSemaphore3;
 
     sem_t updateSemaphore;
+
+
 
     pthread_mutex_t mutexDataSafety;
     int playerInput;
