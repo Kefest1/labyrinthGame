@@ -230,10 +230,6 @@ void erasePlayer(int index) {
 
 void *playerActionListener(void *ptr) {
 
-    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-        playerCommunicator[i]->currentlyMoving = 0;
-
-    // sleep(2u);
     inf_loop:
 
     sem_wait(&playerSharedConnector->isGameRunnningSemaphore);
@@ -243,7 +239,6 @@ void *playerActionListener(void *ptr) {
         for (int i = 0; i < MAX_PLAYER_COUNT; i++) {
             if (playerCommunicator[i]->playerStatus == CONNECTED) {
 
-                playerCommunicator[i]->currentlyMoving = 1;
                 sem_post(&playerCommunicator[i]->communicatorSemaphore1);
 
                 sleep(ROUND_DURATION_SECONDS);
@@ -284,7 +279,6 @@ void *playerActionListener(void *ptr) {
                 wrefresh(win);
                 refresh();
 
-                playerCommunicator[i]->currentlyMoving = 0;
 
             }
 
@@ -371,11 +365,10 @@ void createConnector(void) {
             (player_connector_t *) shmat(sharedBlockId, NULL, 0);
 
     sem_init(&playerSharedConnector->connectorSemaphore1, 1, 0);
-    sem_init(&playerSharedConnector->connectorSemaphore2, 1, 0);
 
     sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
     sem_init(&playerSharedConnector->roundUpdateSemaphore, 1, 0);
-    sem_init(&playerSharedConnector->isServerUpSemaphore, 1, 0);
+
     sem_init(&playerSharedConnector->isGameRunnningSemaphore, 1, 0);
 
     playerSharedConnector->totalPlayerCount = 0;
@@ -831,7 +824,6 @@ void finalize(void) {
     free(players);
 
     sem_destroy(&playerSharedConnector->connectorSemaphore1);
-    sem_destroy(&playerSharedConnector->connectorSemaphore2);
     sem_destroy(&playerSharedConnector->roundUpdateSemaphore);
 
     sem_destroy(&playerSharedConnector->isServerUpSemaphore);
@@ -907,7 +899,10 @@ int movePlayer(int index, player_move_dir playerMoveDir) {
     int willMove;
     int isOnBushes = fieldStatusFrom == getStatusFromIndexBushed(index);
 
-    int isOnCampsite = (xFrom == campsiteXCoordinate) && (yFrom == campsiteXCoordinate);
+    int isOnCampsite = 0;
+    if (xFrom == campsiteXCoordinate && yFrom == campsiteYCoordinate)
+        isOnCampsite = 1;
+
     int goingToCampsite;
 
     if (players->players[index].locked)

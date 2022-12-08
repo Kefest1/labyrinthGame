@@ -33,7 +33,6 @@ typedef enum {
 // Shared between player processes //
 typedef struct {
     sem_t connectorSemaphore1;
-    sem_t connectorSemaphore2;
 
     sem_t isServerUpSemaphore;
 

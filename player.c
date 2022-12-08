@@ -15,7 +15,7 @@
 #define TO_MANY_PLAYERS_ERROR -1
 #define SERVER_NOT_STARTED -2
 
-int getRandomInputDebug(void);
+
 void printMapAround(void);
 // TODO FAIL IF DOESN'T EXIST
 
@@ -199,11 +199,10 @@ int establishConnection(void) {
         refresh();
     }
 
-    sem_post(&playerConnector->connectorSemaphore1);
-
-
     // Already locked! //
     connectToCommunicator(playerID);
+    
+    sem_post(&playerConnector->connectorSemaphore1);
 
     if (playerConnector->totalPlayerCount == 1)
         sem_post(&playerConnector->isGameRunnningSemaphore);
@@ -284,7 +283,7 @@ void *serverListener(void *ptr) {
 void *gameMove(void *ptr) {
     pthread_create(&serverListenerThread, NULL, &serverListener, NULL);
 
-    halfdelay(ROUND_DURATION_TENTH_SECONDS - 2u);
+
     inf_loop:
 
     sem_wait(&playerCommunicator->communicatorSemaphore1);
@@ -295,9 +294,9 @@ void *gameMove(void *ptr) {
     mvwprintw(messagesWindow, 1, 1, "Give input        ");
     wrefresh(messagesWindow);
     refresh();
-
+    halfdelay((int) ROUND_DURATION_TENTH_SECONDS - 4);
     int isq = getch();
-    cbreak();
+    halfdelay(1);
     if (isq == 'Q' || isq == 'q') {
         mapCleanerX = -1;
         playerCommunicator->hasJustDisconnected = 1;
@@ -330,21 +329,6 @@ void *gameMove(void *ptr) {
     return NULL;
 }
 
-int getRandomInputDebug(void) {
-//    srand(time(NULL));
-
-    int dir;
-    dir = rand() % 4;
-
-    if (dir == 0)
-        return KEY_UP;
-    if (dir == 1)
-        return KEY_DOWN;
-    if (dir == 2)
-        return KEY_LEFT;
-
-    return KEY_RIGHT;
-}
 
 void setGameUp(void) {
     initscr();

@@ -44,7 +44,6 @@ struct communicator_t {
     // If wrong -> nothing will happen
 
     player_status playerStatus;
-    _Bool currentlyMoving;
     map_around_t mapAround;
 
     int coinsPicked;
